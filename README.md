@@ -1,1 +1,2 @@
 testing every thing is ok
+export GOOGLE_CLOUD_API_KEY="AQ.Ab8RN6K4Ie1JYJUzxay8AHrGfmKqaWlyMug_v6u7SEWoM7XuQQ"
