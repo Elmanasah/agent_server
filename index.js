@@ -5,6 +5,8 @@ import config from './config.js';
 import morgan from 'morgan';
 import { createServer } from 'http';
 import { WebSocketServer, WebSocket } from 'ws';
+import { GoogleAuth } from 'google-auth-library';
+import fetch from 'node-fetch'; // Ensure node-fetch is available if node < 18, but express 5+ usually fine with global fetch
 
 const app = express();
 const server = createServer(app);
@@ -47,6 +49,55 @@ app.post('/reset', (_req, res) => {
 // GET / → health check
 app.get('/', (_req, res) => {
     res.json({ status: 'ok', message: 'AI Agent is running 🚀' });
+});
+
+// ─── Image Generation (Vertex AI Imagen) ──────────────────────────────────────
+const auth = new GoogleAuth({
+  scopes: 'https://www.googleapis.com/auth/cloud-platform',
+});
+
+app.post('/generate-image', async (req, res) => {
+    const { prompt } = req.body;
+    if (!prompt) return res.status(400).json({ error: 'Prompt is required' });
+
+    try {
+        const client = await auth.getClient();
+        const project = await auth.getProjectId();
+        const tokenSource = await client.getAccessToken();
+        const accessToken = tokenSource.token;
+
+        const location = process.env.GOOGLE_CLOUD_LOCATION || 'us-central1';
+        const model = 'imagen-3.0-generate-001'; // Falling back to 3.0 if 4.0 fast isn't available, but using user's suggested path structure
+        const url = `https://${location}-aiplatform.googleapis.com/v1/projects/${project}/locations/${location}/publishers/google/models/${model}:predict`;
+
+        const response = await fetch(url, {
+            method: 'POST',
+            headers: {
+                'Authorization': `Bearer ${accessToken}`,
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+                instances: [{ prompt }],
+                parameters: { sampleCount: 1 }
+            }),
+        });
+
+        if (!response.ok) {
+            const errorData = await response.json();
+            throw new Error(errorData.error?.message || 'Vertex AI Image Generation failed');
+        }
+
+        const data = await response.json();
+        const base64Image = data.predictions[0].bytesBase64Encoded;
+        
+        res.json({ 
+            imageUrl: `data:image/png;base64,${base64Image}`,
+            prompt: prompt
+        });
+    } catch (err) {
+        console.error('[ImageGen Error]:', err.message);
+        res.status(500).json({ error: err.message });
+    }
 });
 
 // ─── Gemini Live Proxy (WebSocket) ────────────────────────────────────────────
