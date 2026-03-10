@@ -2,7 +2,7 @@ version: '3.8'
 
 services:
   api:
-    image: ghcr.io/${GITHUB_REPOSITORY}/agent-api:latest
+    image: ghcr.io/elmanasah/agent_server:latest
     container_name: agent-api
     restart: unless-stopped
     ports:
