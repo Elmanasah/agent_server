@@ -46,6 +46,26 @@ app.post('/reset', (_req, res) => {
     res.json({ status: 'ok', message: 'Conversation reset' });
 });
 
+// GET /token → get a fresh Google Cloud access token
+app.get('/token', async (_req, res) => {
+    try {
+        const client = await auth.getClient();
+        const tokenSource = await client.getAccessToken();
+        res.json({ token: tokenSource.token });
+    } catch (err) {
+        console.error('[Token Error]:', err.message);
+        res.status(500).json({ error: 'Failed to get access token' });
+    }
+});
+
+// GET /config → get GCP project and location
+app.get('/config', (_req, res) => {
+    res.json({
+        projectId: process.env.GOOGLE_CLOUD_PROJECT,
+        location: process.env.GOOGLE_CLOUD_LOCATION || 'us-central1'
+    });
+});
+
 // GET / → health check
 app.get('/', (_req, res) => {
     res.json({ status: 'ok', message: 'AI Agent is running 🚀' });
@@ -154,29 +174,26 @@ wss.on("connection", (clientWs, req) => {
                     }
 
                     for (const msg of pendingMessages) {
-                        console.log("[proxy →GCP flush]", msg.slice(0, 300));
                         serverWs.send(msg);
                     }
                     pendingMessages.length = 0;
                 });
 
                 serverWs.on("message", (data) => {
-                    const str = data.toString();
-                    console.log("[proxy ←GCP]", str.slice(0, 200));
                     if (clientWs.readyState === WebSocket.OPEN) {
-                        clientWs.send(str);
+                        clientWs.send(data.toString());
                     }
                 });
 
                 serverWs.on("close", (code, reason) => {
-                    console.log(`[proxy] GCP closed ${code} ${reason}`);
+                    console.log(`[proxy] GCP closed | code: ${code} | reason: ${reason}`);
                     if (clientWs.readyState === WebSocket.OPEN) {
-                        clientWs.close(1000, "Upstream closed");
+                        clientWs.close(code, reason || "Upstream closed");
                     }
                 });
 
                 serverWs.on("error", (err) => {
-                    console.error("[proxy] GCP error:", err.message);
+                    console.error("[proxy] GCP connection error:", err);
                     if (clientWs.readyState === WebSocket.OPEN) {
                         clientWs.close(1011, `Upstream error: ${err.message}`);
                     }
