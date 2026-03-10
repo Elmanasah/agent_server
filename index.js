@@ -18,31 +18,9 @@ const app = express();
 const server = createServer(app);
 const wss = new WebSocketServer({ server });
 
-const allowedOrigins = [
-    'https://elmanasah.app',
-    'https://elmanasah.pages.dev',
-    "https://agent.ibrahim-hemdan.com",
-    'http://localhost:5173', // Allow local development
-];
 
 app.use(
-    cors({
-        origin: function (origin, callback) {
-            // Allow requests with no origin (like mobile apps or curl requests)
-            if (!origin) return callback(null, true);
-
-            const isAllowed =
-                allowedOrigins.includes(origin) ||
-                /^https:\/\/.*\.elmanasah\.pages\.dev$/.test(origin);
-
-            if (isAllowed) {
-                callback(null, true);
-            } else {
-                callback(new Error('Not allowed by CORS'));
-            }
-        },
-        credentials: true,
-    }),
+    cors(),
 );
 app.use(express.json());
 app.use(morgan('dev')); // Standard request logging
