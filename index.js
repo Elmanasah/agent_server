@@ -6,13 +6,7 @@ import morgan from 'morgan';
 import { createServer } from 'http';
 import { WebSocketServer, WebSocket } from 'ws';
 import { GoogleAuth } from 'google-auth-library';
-import helmet from 'helmet';
-import compression from 'compression';
-import healthRoutes from './routes/health.routes.js';
-import chatRoutes from './routes/chat.routes.js';
-import errorHandler from './middlewares/errorHandler.js';
-import AppError from './utils/AppError.js';
-import logger from './utils/logger.js';
+import fetch from 'node-fetch'; // Ensure node-fetch is available if node < 18, but express 5+ usually fine with global fetch
 
 const app = express();
 const server = createServer(app);
@@ -40,13 +34,100 @@ app.use(compression());
 app.use('/', healthRoutes);
 app.use('/', chatRoutes);
 
-// Handle unhandled routes (HTTP)
-app.use((req, res, next) => {
-    next(new AppError(`Can't find ${req.originalUrl} on this server!`, 404));
+// POST /chat → send a message to the agent
+app.post('/chat', async (req, res) => {
+    const { message, attachments } = req.body;
+    if (!message && (!attachments || attachments.length === 0)) {
+        return res.status(400).json({ error: 'message or attachments are required' });
+    }
+    try {
+        const reply = await agent.sendMessage(message, attachments);
+        res.json({ reply });
+    } catch (err) {
+        console.error(err.message);
+        res.status(500).json({ error: 'Failed to get a response from the AI agent' });
+    }
 });
 
-// Global error handler
-app.use(errorHandler);
+// POST /reset → clear conversation history by creating a fresh agent
+app.post('/reset', (_req, res) => {
+    agent = new Agent('You are a helpful AI assistant.');
+    res.json({ status: 'ok', message: 'Conversation reset' });
+});
+
+// GET /token → get a fresh Google Cloud access token
+app.get('/token', async (_req, res) => {
+    try {
+        const client = await auth.getClient();
+        const tokenSource = await client.getAccessToken();
+        res.json({ token: tokenSource.token });
+    } catch (err) {
+        console.error('[Token Error]:', err.message);
+        res.status(500).json({ error: 'Failed to get access token' });
+    }
+});
+
+// GET /config → get GCP project and location
+app.get('/config', (_req, res) => {
+    res.json({
+        projectId: process.env.GOOGLE_CLOUD_PROJECT,
+        location: process.env.GOOGLE_CLOUD_LOCATION || 'us-central1'
+    });
+});
+
+// GET / → health check
+app.get('/', (_req, res) => {
+    res.json({ status: 'ok', message: 'AI Agent is running 🚀' });
+});
+
+// ─── Image Generation (Vertex AI Imagen) ──────────────────────────────────────
+const auth = new GoogleAuth({
+  scopes: 'https://www.googleapis.com/auth/cloud-platform',
+});
+
+app.post('/generate-image', async (req, res) => {
+    const { prompt } = req.body;
+    if (!prompt) return res.status(400).json({ error: 'Prompt is required' });
+
+    try {
+        const client = await auth.getClient();
+        const project = await auth.getProjectId();
+        const tokenSource = await client.getAccessToken();
+        const accessToken = tokenSource.token;
+
+        const location = process.env.GOOGLE_CLOUD_LOCATION || 'us-central1';
+        const model = 'imagen-3.0-generate-001'; // Falling back to 3.0 if 4.0 fast isn't available, but using user's suggested path structure
+        const url = `https://${location}-aiplatform.googleapis.com/v1/projects/${project}/locations/${location}/publishers/google/models/${model}:predict`;
+
+        const response = await fetch(url, {
+            method: 'POST',
+            headers: {
+                'Authorization': `Bearer ${accessToken}`,
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+                instances: [{ prompt }],
+                parameters: { sampleCount: 1 }
+            }),
+        });
+
+        if (!response.ok) {
+            const errorData = await response.json();
+            throw new Error(errorData.error?.message || 'Vertex AI Image Generation failed');
+        }
+
+        const data = await response.json();
+        const base64Image = data.predictions[0].bytesBase64Encoded;
+        
+        res.json({ 
+            imageUrl: `data:image/png;base64,${base64Image}`,
+            prompt: prompt
+        });
+    } catch (err) {
+        console.error('[ImageGen Error]:', err.message);
+        res.status(500).json({ error: err.message });
+    }
+});
 
 // ─── Gemini Live Proxy (WebSocket) ────────────────────────────────────────────
 const DEBUG = process.env.DEBUG === "true";
@@ -71,61 +152,71 @@ wss.on("connection", (clientWs, req) => {
     let gcpReady = false;
     const pendingMessages = [];
 
-    // Trigger auth immediately upon connection
-    authInProgress = true;
-    logger.info("[proxy] Client connection initiated. Retrieving GCP token...");
+    const authTimeout = setTimeout(() => {
+        if (!isAuthenticated) {
+            console.log("[proxy] Auth timeout – closing client");
+            clientWs.close(1008, "Authentication timeout");
+        }
+    }, 10_000);
 
-    getGcpAccessToken().then((accessToken) => {
-        // Automatically connect to the configured GCP endpoint
-        const serviceUrl = DEFAULT_SERVICE_URL;
-        logger.info(`[proxy] Auto-Auth OK → connecting to ${serviceUrl}`);
+    clientWs.on("message", (rawData) => {
+        const raw = rawData.toString();
 
-        const headers = {
-            "Content-Type": "application/json",
-            "Authorization": `Bearer ${accessToken}`
-        };
+        if (!isAuthenticated) {
+            try {
+                const authData = JSON.parse(raw);
+                if (!authData.bearer_token) {
+                    clientWs.close(1008, "Bearer token missing");
+                    return;
+                }
 
-        serverWs = new WebSocket(serviceUrl, { headers });
+                clearTimeout(authTimeout);
+                isAuthenticated = true;
 
-        serverWs.on("open", () => {
-            gcpReady = true;
+                const serviceUrl = authData.service_url || DEFAULT_SERVICE_URL;
+                console.log(`[proxy] Auth OK → connecting to ${serviceUrl}`);
 
-            // Vertex AI REQUIRES the setup message to be the very first message.
-            // We will flush the pending messages (which should contain the setup)
-            for (const msg of pendingMessages) {
-                try {
-                    let parsed = JSON.parse(msg);
-                    if (parsed.setup) {
-                        // Ensure model path is correct for Vertex
-                        if (parsed.setup.model === "gemini-live-2.5-flash-native-audio") {
-                            parsed.setup.model = `projects/${config.projectId}/locations/${config.location}/publishers/google/models/gemini-live-2.5-flash-native-audio`;
-                        }
-                        logger.debug("[proxy →GCP setup]", { payload: parsed });
-                        serverWs.send(JSON.stringify(parsed));
-                    } else {
+                const isVertex = serviceUrl.includes("aiplatform.googleapis.com");
+                const headers = { "Content-Type": "application/json" };
+                if (isVertex) {
+                    headers["Authorization"] = `Bearer ${authData.bearer_token}`;
+                }
+
+                serverWs = new WebSocket(serviceUrl, { headers });
+
+                serverWs.on("open", () => {
+                    gcpReady = true;
+                    console.log(`[proxy] GCP open — flushing ${pendingMessages.length} buffered msg(s)`);
+
+                    if (clientWs.readyState === WebSocket.OPEN) {
+                        clientWs.send(JSON.stringify({ proxy_ready: true }));
+                    }
+
+                    for (const msg of pendingMessages) {
                         serverWs.send(msg);
                     }
-                } catch (err) {
-                    serverWs.send(msg);
-                }
-            }
-            pendingMessages.length = 0;
-        });
+                    pendingMessages.length = 0;
+                });
 
-        serverWs.on("message", (data) => {
-            const str = data.toString();
-            if (DEBUG) logger.debug("[proxy ←GCP]", { preview: str.slice(0, 200) });
-            if (clientWs.readyState === WebSocket.OPEN) {
-                clientWs.send(str);
-            }
-        });
+                serverWs.on("message", (data) => {
+                    if (clientWs.readyState === WebSocket.OPEN) {
+                        clientWs.send(data.toString());
+                    }
+                });
 
-        serverWs.on("close", (code, reason) => {
-            logger.info(`[proxy] GCP closed ${code} ${reason}`);
-            if (clientWs.readyState === WebSocket.OPEN) {
-                clientWs.close(1000, "Upstream closed");
-            }
-        });
+                serverWs.on("close", (code, reason) => {
+                    console.log(`[proxy] GCP closed | code: ${code} | reason: ${reason}`);
+                    if (clientWs.readyState === WebSocket.OPEN) {
+                        clientWs.close(code, reason || "Upstream closed");
+                    }
+                });
+
+                serverWs.on("error", (err) => {
+                    console.error("[proxy] GCP connection error:", err);
+                    if (clientWs.readyState === WebSocket.OPEN) {
+                        clientWs.close(1011, `Upstream error: ${err.message}`);
+                    }
+                });
 
         serverWs.on("error", (err) => {
             logger.error(`[proxy] GCP error: ${err.message}`);
