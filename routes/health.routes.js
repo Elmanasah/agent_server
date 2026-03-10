@@ -6,7 +6,7 @@ router.get('/health', (req, res) => {
     res.status(200).json({ status: 'ok', timestamp: new Date().toISOString() });
 });
 
-router.get('/api/v1/health', (req, res) => {
+router.get('/api/v1/healthy', (req, res) => {
     const healthCheck = {
         status: 'ok',
         timestamp: new Date().toISOString(),
