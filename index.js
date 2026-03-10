@@ -12,6 +12,7 @@ import healthRoutes from './routes/health.routes.js';
 import chatRoutes from './routes/chat.routes.js';
 import errorHandler from './middlewares/errorHandler.js';
 import AppError from './utils/AppError.js';
+import logger from './utils/logger.js';
 
 const app = express();
 const server = createServer(app);
@@ -19,7 +20,7 @@ const wss = new WebSocketServer({ server });
 
 // ─── CORS ─────────────────────────────────────────────────────────────────────
 app.use(cors({
-    origin: ['http://localhost:5173', 'http://127.0.0.1:5173'],
+    origin: config.allowedOrigins,
     methods: ['GET', 'POST', 'OPTIONS'],
     allowedHeaders: ['Content-Type'],
 }));
@@ -57,7 +58,7 @@ async function getGcpAccessToken() {
 }
 
 wss.on("connection", (clientWs, req) => {
-    console.log(`[proxy] New client from ${req.socket.remoteAddress}`);
+    logger.info(`[proxy] New client from ${req.socket.remoteAddress}`);
 
     let serverWs = null;
     let authInProgress = false;
@@ -66,12 +67,12 @@ wss.on("connection", (clientWs, req) => {
 
     // Trigger auth immediately upon connection
     authInProgress = true;
-    console.log("[proxy] Client connection initiated. Retrieving GCP token...");
+    logger.info("[proxy] Client connection initiated. Retrieving GCP token...");
 
     getGcpAccessToken().then((accessToken) => {
         // Automatically connect to the configured GCP endpoint
         const serviceUrl = DEFAULT_SERVICE_URL;
-        console.log(`[proxy] Auto-Auth OK → connecting to ${serviceUrl}`);
+        logger.info(`[proxy] Auto-Auth OK → connecting to ${serviceUrl}`);
 
         const headers = {
             "Content-Type": "application/json",
@@ -93,7 +94,7 @@ wss.on("connection", (clientWs, req) => {
                         if (parsed.setup.model === "gemini-live-2.5-flash-native-audio") {
                             parsed.setup.model = `projects/${config.projectId}/locations/${config.location}/publishers/google/models/gemini-live-2.5-flash-native-audio`;
                         }
-                        console.log("[proxy →GCP setup]", JSON.stringify(parsed, null, 2));
+                        logger.debug("[proxy →GCP setup]", { payload: parsed });
                         serverWs.send(JSON.stringify(parsed));
                     } else {
                         serverWs.send(msg);
@@ -107,28 +108,28 @@ wss.on("connection", (clientWs, req) => {
 
         serverWs.on("message", (data) => {
             const str = data.toString();
-            if (DEBUG) console.log("[proxy ←GCP]", str.slice(0, 200));
+            if (DEBUG) logger.debug("[proxy ←GCP]", { preview: str.slice(0, 200) });
             if (clientWs.readyState === WebSocket.OPEN) {
                 clientWs.send(str);
             }
         });
 
         serverWs.on("close", (code, reason) => {
-            console.log(`[proxy] GCP closed ${code} ${reason}`);
+            logger.info(`[proxy] GCP closed ${code} ${reason}`);
             if (clientWs.readyState === WebSocket.OPEN) {
                 clientWs.close(1000, "Upstream closed");
             }
         });
 
         serverWs.on("error", (err) => {
-            console.error("[proxy] GCP error:", err.message);
+            logger.error(`[proxy] GCP error: ${err.message}`);
             if (clientWs.readyState === WebSocket.OPEN) {
                 clientWs.close(1011, `Upstream error: ${err.message}`);
             }
         });
 
     }).catch((err) => {
-        console.error("[proxy] Failed to get GCP Access Token:", err.message);
+        logger.error(`[proxy] Failed to get GCP Access Token: ${err.message}`);
         clientWs.close(1008, "Internal GCP Auth Error");
     });
 
@@ -136,7 +137,7 @@ wss.on("connection", (clientWs, req) => {
         const raw = rawData.toString();
 
         if (!gcpReady) {
-            console.log("[proxy] GCP not ready, buffering…");
+            logger.debug("[proxy] GCP not ready, buffering…");
             pendingMessages.push(raw);
             return;
         }
@@ -147,33 +148,32 @@ wss.on("connection", (clientWs, req) => {
     });
 
     clientWs.on("close", (code, reason) => {
-        console.log(`[proxy] Client disconnected ${code} ${reason}`);
-        clearTimeout(authTimeout);
+        logger.info(`[proxy] Client disconnected ${code} ${reason}`);
         if (serverWs?.readyState === WebSocket.OPEN) serverWs.close();
     });
 
     clientWs.on("error", (err) => {
-        console.error("[proxy] Client error:", err.message);
+        logger.error(`[proxy] Client error: ${err.message}`);
     });
 });
 
 const serverInstance = server.listen(config.port, () => {
-    console.log(`✅ Server running at http://localhost:${config.port}`);
-    console.log(`✅ Proxy running at ws://localhost:${config.port}`);
+    logger.info(`✅ Server running at http://localhost:${config.port}`);
+    logger.info(`✅ Proxy running at ws://localhost:${config.port}`);
 });
 
 process.on('SIGTERM', () => {
-    console.log('SIGTERM received. Shutting down gracefully...');
+    logger.info('SIGTERM received. Shutting down gracefully...');
     serverInstance.close(() => {
-        console.log('HTTP/WS server closed.');
+        logger.info('HTTP/WS server closed.');
         process.exit(0);
     });
 });
 
 process.on('SIGINT', () => {
-    console.log('SIGINT received. Shutting down gracefully...');
+    logger.info('SIGINT received. Shutting down gracefully...');
     serverInstance.close(() => {
-        console.log('HTTP/WS server closed.');
+        logger.info('HTTP/WS server closed.');
         process.exit(0);
     });
 });

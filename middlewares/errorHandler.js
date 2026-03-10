@@ -1,3 +1,5 @@
+import logger from '../utils/logger.js';
+
 const errorHandler = (err, req, res, next) => {
     err.statusCode = err.statusCode || 500;
     err.status = err.status || 'error';
@@ -18,7 +20,7 @@ const errorHandler = (err, req, res, next) => {
             });
         } else {
             // Programming or other unknown error
-            console.error('ERROR 💥', err);
+            logger.error('ERROR 💥', err);
             res.status(500).json({
                 status: 'error',
                 message: 'Something went very wrong!'

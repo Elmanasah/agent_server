@@ -1,5 +1,6 @@
 import { Agent } from '../agent.js';
 import AppError from '../utils/AppError.js';
+import logger from '../utils/logger.js';
 
 // Shared stateful instance
 let agent = new Agent('You are a helpful AI assistant.');
@@ -13,7 +14,7 @@ export const sendMessage = async (req, res, next) => {
         const reply = await agent.sendMessage(message);
         res.json({ reply });
     } catch (err) {
-        console.error(err.message);
+        logger.error(`Error in sendMessage: ${err.message}`, { stack: err.stack });
         next(new AppError('Failed to get a response from the AI agent', 500));
     }
 };
