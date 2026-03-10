@@ -6,6 +6,12 @@ import morgan from 'morgan';
 import { createServer } from 'http';
 import { WebSocketServer, WebSocket } from 'ws';
 import { GoogleAuth } from 'google-auth-library';
+import helmet from 'helmet';
+import compression from 'compression';
+import healthRoutes from './routes/health.routes.js';
+import chatRoutes from './routes/chat.routes.js';
+import errorHandler from './middlewares/errorHandler.js';
+import AppError from './utils/AppError.js';
 
 const app = express();
 const server = createServer(app);
@@ -20,35 +26,20 @@ app.use(cors({
 
 app.use(express.json());
 app.use(morgan('dev')); // Standard request logging
+app.use(helmet());
+app.use(compression());
 
-// ─── Agent (shared stateful instance) ─────────────────────────────────────────
-let agent = new Agent('You are a helpful AI assistant.');
+// Mount the routes
+app.use('/', healthRoutes);
+app.use('/', chatRoutes);
 
-// POST /chat → send a message to the agent
-app.post('/chat', async (req, res) => {
-    const { message } = req.body;
-    if (!message) {
-        return res.status(400).json({ error: 'message field is required' });
-    }
-    try {
-        const reply = await agent.sendMessage(message);
-        res.json({ reply });
-    } catch (err) {
-        console.error(err.message);
-        res.status(500).json({ error: 'Failed to get a response from the AI agent' });
-    }
+// Handle unhandled routes (HTTP)
+app.use((req, res, next) => {
+    next(new AppError(`Can't find ${req.originalUrl} on this server!`, 404));
 });
 
-// POST /reset → clear conversation history by creating a fresh agent
-app.post('/reset', (_req, res) => {
-    agent = new Agent('You are a helpful AI assistant.');
-    res.json({ status: 'ok', message: 'Conversation reset' });
-});
-
-// GET / → health check
-app.get('/', (_req, res) => {
-    res.json({ status: 'ok', message: 'AI Agent is running 🚀' });
-});
+// Global error handler
+app.use(errorHandler);
 
 // ─── Gemini Live Proxy (WebSocket) ────────────────────────────────────────────
 const DEBUG = process.env.DEBUG === "true";
@@ -166,7 +157,23 @@ wss.on("connection", (clientWs, req) => {
     });
 });
 
-server.listen(config.port, () => {
+const serverInstance = server.listen(config.port, () => {
     console.log(`✅ Server running at http://localhost:${config.port}`);
     console.log(`✅ Proxy running at ws://localhost:${config.port}`);
+});
+
+process.on('SIGTERM', () => {
+    console.log('SIGTERM received. Shutting down gracefully...');
+    serverInstance.close(() => {
+        console.log('HTTP/WS server closed.');
+        process.exit(0);
+    });
+});
+
+process.on('SIGINT', () => {
+    console.log('SIGINT received. Shutting down gracefully...');
+    serverInstance.close(() => {
+        console.log('HTTP/WS server closed.');
+        process.exit(0);
+    });
 });
