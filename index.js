@@ -27,12 +27,12 @@ let agent = new Agent('You are a helpful AI assistant.');
 
 // POST /chat → send a message to the agent
 app.post('/chat', async (req, res) => {
-    const { message } = req.body;
-    if (!message) {
-        return res.status(400).json({ error: 'message field is required' });
+    const { message, attachments } = req.body;
+    if (!message && (!attachments || attachments.length === 0)) {
+        return res.status(400).json({ error: 'message or attachments are required' });
     }
     try {
-        const reply = await agent.sendMessage(message);
+        const reply = await agent.sendMessage(message, attachments);
         res.json({ reply });
     } catch (err) {
         console.error(err.message);

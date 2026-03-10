@@ -17,9 +17,33 @@ export class Agent {
         });
     }
 
-    async sendMessage(message) {
+    async sendMessage(message, attachments = []) {
         try {
-            const result = await this.chat.sendMessage(message);
+            const parts = [];
+
+            // Only add text part if there is a message
+            if (message && message.trim()) {
+                parts.push({ text: message });
+            }
+
+            // Add attachments to parts
+            for (const att of attachments) {
+                if (att.data && att.mimeType) {
+                    parts.push({
+                        inlineData: {
+                            data: att.data, // Base64 string
+                            mimeType: att.mimeType
+                        }
+                    });
+                }
+            }
+
+            if (parts.length === 0) {
+                throw new Error('No content provided (message or attachments)');
+            }
+
+            // In Vertex AI SDK, sendMessage takes string | Part | (string | Part)[]
+            const result = await this.chat.sendMessage(parts);
             const candidate = result.response.candidates?.[0];
             if (!candidate) throw new Error('No candidate returned from model');
             return candidate.content.parts[0].text;
