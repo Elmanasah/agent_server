@@ -4,6 +4,7 @@
   "description": "",
   "main": "index.js",
   "scripts": {
+    "start": "node index.js",
     "test": "echo \"Error: no test specified\" && exit 1",
     "hema": "nodemon index.js",
     "dev": "nodemon index.js"
@@ -16,11 +17,15 @@
     "@google-cloud/vertexai": "^1.10.0",
     "@google/genai": "^1.44.0",
     "@google/generative-ai": "^0.24.1",
+    "compression": "^1.8.1",
     "cors": "^2.8.6",
     "dotenv": "^17.3.1",
     "express": "^5.2.1",
+    "express-rate-limit": "^8.3.1",
     "google-auth-library": "^10.6.1",
+    "helmet": "^8.1.0",
     "morgan": "^1.10.1",
+    "winston": "^3.19.0",
     "ws": "^8.19.0"
   }
 }
