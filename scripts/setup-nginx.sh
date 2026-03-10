@@ -42,9 +42,13 @@ server {
         # WebSocket Support Headers! CRITICAL FOR agent-api
         proxy_http_version 1.1;
         proxy_set_header Upgrade \$http_upgrade;
-        proxy_set_header Connection "upgrade";
+        proxy_set_header Connection "Upgrade";
+        proxy_cache_bypass \$http_upgrade;
         
-        proxy_read_timeout 86400; # Prevent websocket from dropping under heavy load
+        # Cloudflare WebSocket preservation timeouts
+        proxy_read_timeout 86400s; 
+        proxy_send_timeout 86400s;
+        proxy_buffering off;
     }
 }
 EOF

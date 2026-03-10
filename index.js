@@ -16,7 +16,7 @@ import logger from './utils/logger.js';
 
 const app = express();
 const server = createServer(app);
-const wss = new WebSocketServer({ server });
+const wss = new WebSocketServer({ noServer: true });
 
 
 app.use(
@@ -160,6 +160,31 @@ wss.on("connection", (clientWs, req) => {
 
     clientWs.on("error", (err) => {
         logger.error(`[proxy] Client error: ${err.message}`);
+    });
+});
+
+// Explicit WebSocket CORS and Upgrade Handler
+server.on('upgrade', (request, socket, head) => {
+    const origin = request.headers.origin;
+
+    // In production, enforce origin checks for WebSockets
+    if (config.NODE_ENV === 'production' && origin) {
+        const allowed = [
+            'https://agent.elmanasah.app',
+            'https://agent-front-2lo.pages.dev',
+            'https://agent.ibrahim-hemdan.com'
+        ];
+
+        let isAllowed = allowed.includes(origin) || origin.endsWith('.elmanasah.pages.dev');
+        if (!isAllowed) {
+            socket.write('HTTP/1.1 401 Unauthorized\r\n\r\n');
+            socket.destroy();
+            return;
+        }
+    }
+
+    wss.handleUpgrade(request, socket, head, (ws) => {
+        wss.emit('connection', ws, request);
     });
 });
 
