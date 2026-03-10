@@ -20,7 +20,16 @@ const wss = new WebSocketServer({ server });
 
 
 app.use(
-    cors(),
+    cors({
+        origin: function (origin, callback) {
+            // Reflect the exact origin of the incoming request
+            // This allows all origins but still permits credentials
+            callback(null, origin || '*');
+        },
+        credentials: true,
+        methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+        allowedHeaders: ['Origin', 'X-Requested-With', 'Content-Type', 'Accept', 'Authorization']
+    })
 );
 app.use(express.json());
 app.use(morgan('dev')); // Standard request logging
