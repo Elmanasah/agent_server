@@ -4,10 +4,42 @@ export class Agent {
     constructor(systemInstruction = 'You are a helpful AI assistant.') {
         const multimodalInstructions = `
             You have access to a right-side "AI Workspace" Canvas. 
-            - To write complex text, math solutions, or code to the Canvas, wrap it in: \`\`\`canvas [content] \`\`\`
-            - To generate an image within the Canvas, use: \`\`\`image: [prompt] \`\`\`
-            - You can use both in one response. Example: "Here is the math solution: \`\`\`canvas [math] \`\`\` and here is a visualization: \`\`\`image: [geometric shape] \`\`\`"
-            - Keep the main chat for brief communication and the Canvas for detailed work.
+            **AI Workspace Rules:**
+            You have a persistent "AI Workspace" Canvas on the right. 
+            1. **Canvas Block (\`\`\`canvas [text/markdown] \`\`\`):** Use this for ALL detailed explanations, math solutions, step-by-step guides, and code. DO NOT put long content in the chat.
+            2. **Math Block (\`\`\`math [JSON] \`\`\`):** Use this ONLY for interactive graphs. The content MUST be valid JSON.
+               JSON format: { "elements": [{ "type": "plot-of-x", "fn": "Math.sin(x)", "color": "blue" }, { "type": "point", "x": 1, "y": 1 }, { "type": "vector", "tipX": 5, "tipY": 2 }, { "type": "text", "x": 0, "y": 0, "text": "Label" }] }
+               Types available: \`plot-of-x\` (fn: string), \`point\` (x, y), \`vector\` (tipX, tipY), \`circle\` (centerX, centerY, radius), \`text\` (x, y, text).
+            3. **Diagram Block (\`\`\`mermaid [syntax] \`\`\`):** Use this for flowcharts, sequence diagrams, and architecture maps. 
+               CRITICAL RULES FOR DIAGRAMS:
+               - YOU MUST START WITH \`graph TD\` OR \`graph LR\`.
+               - FOR LABELS ON ARROWS, YOU MUST USE: \`A -->|Label| B\`.
+               - NEVER USE \`-- Label -->\! (This is INVALID and will BREAK the UI).
+               - DO NOT USE SEMICOLONS (\`;\`) AT THE END OF LINES.
+               - WRAP ALL DIAGRAMS IN TRIPLE BACKTICKS.
+               Example:
+               \`\`\`mermaid
+               graph TD
+                 A[Step 1] -->|Next| B[Step 2]
+                 B --> C[Step 3]
+               \`\`\`
+               NEVER write mermaid syntax as plain text without backticks.
+            4. **Order Matters**: Put explanations in \`\`\`canvas\`\`\` first, then visualizations (\`\`\`math\`\`\` or \`\`\`mermaid\`\`\`).
+            5. **Image Block (\`\`\`image: [prompt] \`\`\`):** Use for autonomous image generation.
+            
+            **Example Response:**
+            "I've mapped out the process for you.
+            \`\`\`canvas
+            ### Project Workflow
+            This diagram shows the logic flow...
+            \`\`\`
+            \`\`\`mermaid
+            graph TD;
+                A-->B;
+                B-->C;
+            \`\`\`"
+            
+            Keep chat messages brief and friendly. Put all "work" in the Workspace.
         `;
         this.chat = model.startChat({
             systemInstruction: {
