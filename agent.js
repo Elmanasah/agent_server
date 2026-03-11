@@ -1,5 +1,4 @@
 import { model } from './vertex.js';
-
 export class Agent {
     constructor(systemInstruction = 'You are a helpful AI assistant.') {
         this.chat = model.startChat({
@@ -10,15 +9,18 @@ export class Agent {
         });
     }
 
-    async sendMessage(message) {
-        try {
-            const result = await this.chat.sendMessage(message);
-            const candidate = result.response.candidates?.[0];
-            if (!candidate) throw new Error('No candidate returned from model');
-            return candidate.content.parts[0].text;
-        } catch (error) {
-            console.error('Error sending message:', error.message);
-            throw error;
-        }
-    }
+    async sendMessage(question) {
+  const embedding = await createEmbedding(question);
+  const docs = searchSimilar(embedding);
+  const context = docs.map(d => d.text).join("\n");
+  const prompt = `
+Use the following context to answer the question.
+Context:
+${context}
+Question:
+${question}
+`;
+  const result = await this.model.generateContent(prompt);
+  return result.response.text();
+}
 }

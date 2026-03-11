@@ -17,12 +17,21 @@ app.use(cors({
     allowedHeaders: ['Content-Type'],
 }));
 
+
 app.use(express.json());
 app.use(morgan('dev')); // Standard request logging
 
 // ─── Agent (shared stateful instance) ─────────────────────────────────────────
 let agent = new Agent('You are a helpful AI assistant.');
-
+app.post("/add-doc", async (req, res) => {
+  const { text } = req.body;
+  const embedding = await createEmbedding(text);
+  addDocument({
+    text,
+    embedding
+  });
+  res.json({ status: "stored" });
+});
 // POST /chat → send a message to the agent
 app.post('/chat', async (req, res) => {
     const { message } = req.body;
