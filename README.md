@@ -1,3 +1,2 @@
-this one to triger the pipeline 
-the stupid agent was lestening on the main not the master
-this the last one i am done
+testing every thing is ok
+export GOOGLE_CLOUD_API_KEY="AQ.Ab8RN6K4Ie1JYJUzxay8AHrGfmKqaWlyMug_v6u7SEWoM7XuQQ"

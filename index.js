@@ -10,29 +10,20 @@ import fetch from 'node-fetch'; // Ensure node-fetch is available if node < 18, 
 
 const app = express();
 const server = createServer(app);
-const wss = new WebSocketServer({ noServer: true });
+const wss = new WebSocketServer({ server });
 
+// ─── CORS ─────────────────────────────────────────────────────────────────────
+app.use(cors({
+    origin: ['http://localhost:5173', 'http://127.0.0.1:5173'],
+    methods: ['GET', 'POST', 'OPTIONS'],
+    allowedHeaders: ['Content-Type'],
+}));
 
-app.use(
-    cors({
-        origin: function (origin, callback) {
-            // Reflect the exact origin of the incoming request
-            // This allows all origins but still permits credentials
-            callback(null, origin || '*');
-        },
-        credentials: true,
-        methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
-        allowedHeaders: ['Origin', 'X-Requested-With', 'Content-Type', 'Accept', 'Authorization']
-    })
-);
 app.use(express.json());
 app.use(morgan('dev')); // Standard request logging
-app.use(helmet());
-app.use(compression());
 
-// Mount the routes
-app.use('/', healthRoutes);
-app.use('/', chatRoutes);
+// ─── Agent (shared stateful instance) ─────────────────────────────────────────
+let agent = new Agent('You are a helpful AI assistant.');
 
 // POST /chat → send a message to the agent
 app.post('/chat', async (req, res) => {
@@ -131,24 +122,14 @@ app.post('/generate-image', async (req, res) => {
 
 // ─── Gemini Live Proxy (WebSocket) ────────────────────────────────────────────
 const DEBUG = process.env.DEBUG === "true";
-const GCP_API_HOST = `${config.location}-aiplatform.googleapis.com`;
+const GCP_API_HOST = process.env.GCP_API_HOST || "us-central1-aiplatform.googleapis.com";
 const DEFAULT_SERVICE_URL = `wss://${GCP_API_HOST}/ws/google.cloud.aiplatform.v1beta1.LlmBidiService/BidiGenerateContent`;
 
-// Authenticate and get a short-lived token using Application Default Credentials
-async function getGcpAccessToken() {
-    const auth = new GoogleAuth({
-        scopes: ['https://www.googleapis.com/auth/cloud-platform']
-    });
-    const client = await auth.getClient();
-    const token = await client.getAccessToken();
-    return token.token;
-}
-
 wss.on("connection", (clientWs, req) => {
-    logger.info(`[proxy] New client from ${req.socket.remoteAddress}`);
+    console.log(`[proxy] New client from ${req.socket.remoteAddress}`);
 
     let serverWs = null;
-    let authInProgress = false;
+    let isAuthenticated = false;
     let gcpReady = false;
     const pendingMessages = [];
 
@@ -218,84 +199,38 @@ wss.on("connection", (clientWs, req) => {
                     }
                 });
 
-        serverWs.on("error", (err) => {
-            logger.error(`[proxy] GCP error: ${err.message}`);
-            if (clientWs.readyState === WebSocket.OPEN) {
-                clientWs.close(1011, `Upstream error: ${err.message}`);
+            } catch (err) {
+                console.error("[proxy] Bad auth message:", err.message);
+                clientWs.close(1008, "Invalid auth message");
             }
-        });
-
-    }).catch((err) => {
-        logger.error(`[proxy] Failed to get GCP Access Token: ${err.message}`);
-        clientWs.close(1008, "Internal GCP Auth Error");
-    });
-
-    clientWs.on("message", (rawData) => {
-        const raw = rawData.toString();
+            return;
+        }
 
         if (!gcpReady) {
-            logger.debug("[proxy] GCP not ready, buffering…");
+            console.log("[proxy] GCP not ready, buffering…");
             pendingMessages.push(raw);
             return;
         }
 
         if (serverWs?.readyState === WebSocket.OPEN) {
+            const parsed = JSON.parse(raw);
+            if (parsed.setup) console.log("[proxy →GCP setup]", JSON.stringify(parsed, null, 2));
             serverWs.send(raw);
         }
     });
 
     clientWs.on("close", (code, reason) => {
-        logger.info(`[proxy] Client disconnected ${code} ${reason}`);
+        console.log(`[proxy] Client disconnected ${code} ${reason}`);
+        clearTimeout(authTimeout);
         if (serverWs?.readyState === WebSocket.OPEN) serverWs.close();
     });
 
     clientWs.on("error", (err) => {
-        logger.error(`[proxy] Client error: ${err.message}`);
+        console.error("[proxy] Client error:", err.message);
     });
 });
 
-// Explicit WebSocket CORS and Upgrade Handler
-server.on('upgrade', (request, socket, head) => {
-    const origin = request.headers.origin;
-
-    // In production, enforce origin checks for WebSockets
-    if (config.NODE_ENV === 'production' && origin) {
-        const allowed = [
-            'https://agent.elmanasah.app',
-            'https://agent-front-2lo.pages.dev',
-            'https://agent.ibrahim-hemdan.com'
-        ];
-
-        let isAllowed = allowed.includes(origin) || origin.endsWith('.elmanasah.pages.dev');
-        if (!isAllowed) {
-            socket.write('HTTP/1.1 401 Unauthorized\r\n\r\n');
-            socket.destroy();
-            return;
-        }
-    }
-
-    wss.handleUpgrade(request, socket, head, (ws) => {
-        wss.emit('connection', ws, request);
-    });
-});
-
-const serverInstance = server.listen(config.port, () => {
-    logger.info(`✅ Server running at http://localhost:${config.port}`);
-    logger.info(`✅ Proxy running at ws://localhost:${config.port}`);
-});
-
-process.on('SIGTERM', () => {
-    logger.info('SIGTERM received. Shutting down gracefully...');
-    serverInstance.close(() => {
-        logger.info('HTTP/WS server closed.');
-        process.exit(0);
-    });
-});
-
-process.on('SIGINT', () => {
-    logger.info('SIGINT received. Shutting down gracefully...');
-    serverInstance.close(() => {
-        logger.info('HTTP/WS server closed.');
-        process.exit(0);
-    });
+server.listen(config.port, () => {
+    console.log(`✅ Server running at http://localhost:${config.port}`);
+    console.log(`✅ Proxy running at ws://localhost:${config.port}`);
 });
