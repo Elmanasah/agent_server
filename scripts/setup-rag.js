@@ -198,12 +198,11 @@ async function deployIndex(indexId, endpointId) {
     const body = {
         deployedIndex: {
             id:          DEPLOYED_ID,
-            indexId:     `projects/${PROJECT}/locations/${LOCATION}/indexes/${indexId}`,
+            index:     `projects/${PROJECT}/locations/${LOCATION}/indexes/${indexId}`,
             displayName: 'learnify-deployed',
-            dedicatedResources: {
-                machineSpec:     { machineType: 'e2-standard-2' },
+            automaticResources: {
                 minReplicaCount: 1,
-                maxReplicaCount: 2, // auto-scales for burst traffic
+                maxReplicaCount: 2,
             },
         },
     };
