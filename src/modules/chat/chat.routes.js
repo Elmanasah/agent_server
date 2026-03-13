@@ -19,7 +19,7 @@ const chatSchema = z.object({
     sessionId: z.string().uuid().optional().nullable().default(null),
 });
 
-router.post('/chat', validate(chatSchema), chatController.chat);
+router.post('/', validate(chatSchema), chatController.chat);
 router.post('/reset', chatController.reset);
 
 export default router;

@@ -1,15 +1,14 @@
 /**
  * src/db/sync.js
  *
- * Creates all tables in CockroachDB using raw SQL — avoids Sequelize's
- * ALTER/DROP FK ordering issues with CockroachDB.
+ * Syncs all Sequelize models to CockroachDB.
  *
  * Run once on setup:  node src/db/sync.js
  * Force full reset:   FORCE=true node src/db/sync.js  ⚠️  DESTROYS ALL DATA
  */
 
 import '../config/index.js';
-import sequelize from './index.js';
+import { sequelize, User, Session, Message, Document, OTP } from '../models/index.js';
 
 const force = process.env.FORCE === 'true';
 
@@ -21,63 +20,26 @@ try {
     console.log('✅ Connection established\n');
 
     if (force) {
-        console.log('⚠️  FORCE mode — dropping all tables...');
-        // Drop in reverse FK order
-        await sequelize.query('DROP TABLE IF EXISTS messages  CASCADE');
-        await sequelize.query('DROP TABLE IF EXISTS documents CASCADE');
-        await sequelize.query('DROP TABLE IF EXISTS sessions  CASCADE');
-        await sequelize.query('DROP TABLE IF EXISTS users     CASCADE');
-        console.log('   Tables dropped.\n');
+        console.log('⚠️  FORCE mode — dropping and recreating all tables...\n');
     }
 
-    console.log('🔄 Creating tables (if they do not exist)...');
+    console.log('🔄 Syncing models...');
 
-    // 1. users (no FKs)
-    await sequelize.query(`
-        CREATE TABLE IF NOT EXISTS users (
-            id          UUID         PRIMARY KEY DEFAULT gen_random_uuid(),
-            uid         VARCHAR(255) NOT NULL UNIQUE,
-            "createdAt" TIMESTAMPTZ  NOT NULL DEFAULT NOW()
-        )
-    `);
+    // Sync each model in FK-dependency order
+    await User.sync({ force });
     console.log('   ✓ users');
 
-    // 2. sessions (FK → users)
-    await sequelize.query(`
-        CREATE TABLE IF NOT EXISTS sessions (
-            id          UUID         PRIMARY KEY DEFAULT gen_random_uuid(),
-            title       VARCHAR(120) NOT NULL DEFAULT 'New conversation',
-            "userId"    UUID         NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-            "createdAt" TIMESTAMPTZ  NOT NULL DEFAULT NOW(),
-            "updatedAt" TIMESTAMPTZ  NOT NULL DEFAULT NOW()
-        )
-    `);
+    await Session.sync({ force });
     console.log('   ✓ sessions');
 
-    // 3. messages (FK → sessions)
-    await sequelize.query(`
-        CREATE TABLE IF NOT EXISTS messages (
-            id          UUID         PRIMARY KEY DEFAULT gen_random_uuid(),
-            role        VARCHAR(10)  NOT NULL,
-            parts       JSONB        NOT NULL,
-            "sessionId" UUID         NOT NULL REFERENCES sessions(id) ON DELETE CASCADE,
-            "createdAt" TIMESTAMPTZ  NOT NULL DEFAULT NOW()
-        )
-    `);
+    await Message.sync({ force });
     console.log('   ✓ messages');
 
-    // 4. documents (FK → users)
-    await sequelize.query(`
-        CREATE TABLE IF NOT EXISTS documents (
-            id          UUID         PRIMARY KEY DEFAULT gen_random_uuid(),
-            "fileName"  VARCHAR(255) NOT NULL,
-            "mimeType"  VARCHAR(255) NOT NULL,
-            "chunkIds"  VARCHAR(255)[] NOT NULL DEFAULT ARRAY[]::VARCHAR(255)[],
-            "userId"    UUID         NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-            "createdAt" TIMESTAMPTZ  NOT NULL DEFAULT NOW()
-        )
-    `);
+    await Document.sync({ force });
     console.log('   ✓ documents');
+
+    await OTP.sync({ force });
+    console.log('   ✓ otps');
 
     // Verify
     const [tables] = await sequelize.query(

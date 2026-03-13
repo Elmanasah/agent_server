@@ -7,8 +7,8 @@ import * as sessionsController from './sessions.controller.js';
 
 const router = Router();
 
-router.get('/sessions', sessionsController.list);
-router.get('/sessions/:id', sessionsController.get);
-router.delete('/sessions/:id', sessionsController.remove);
+router.get('/', sessionsController.list);
+router.get('/:id', sessionsController.get);
+router.delete('/:id', sessionsController.remove);
 
 export default router;

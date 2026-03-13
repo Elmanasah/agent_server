@@ -17,7 +17,7 @@ const ingestSchema = z.object({
 });
 
 router.post('/ingest', validate(ingestSchema), documentsController.ingest);
-router.get('/documents', documentsController.list);
-router.delete('/documents/:docId', documentsController.remove);
+router.get('/', documentsController.list);
+router.delete('/:docId', documentsController.remove);
 
 export default router;

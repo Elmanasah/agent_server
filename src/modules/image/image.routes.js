@@ -13,6 +13,6 @@ const imageSchema = z.object({
     prompt: z.string().min(1, 'Prompt is required'),
 });
 
-router.post('/generate-image', validate(imageSchema), imageController.generate);
+router.post('/generate', validate(imageSchema), imageController.generate);
 
 export default router;

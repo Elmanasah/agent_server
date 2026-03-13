@@ -10,6 +10,7 @@ import UserModel from './user.model.js';
 import SessionModel from './session.model.js';
 import MessageModel from './message.model.js';
 import DocumentModel from './document.model.js';
+import OTPModel from './otp.model.js';
 
 // ── Associations ──────────────────────────────────────────────────────────────
 UserModel.hasMany(SessionModel, { foreignKey: 'userId', as: 'sessions' });
@@ -25,5 +26,6 @@ export const User = UserModel;
 export const Session = SessionModel;
 export const Message = MessageModel;
 export const Document = DocumentModel;
+export const OTP = OTPModel;
 
 export { sequelize };

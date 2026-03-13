@@ -1,0 +1,835 @@
+{
+    "info": {
+        "_postman_id": "a1b2c3d4-e5f6-7890-abcd-ef1234567890",
+        "name": "AI Agent Server API",
+        "description": "Full API collection for the AI Agent Server.\n\nBase URL: http://localhost:3000\nAll routes are versioned under `/api/v1/`.\n\nAuthentication: JWT token via cookie (`jwt`) or Bearer header.",
+        "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+    },
+    "variable": [
+        {
+            "key": "baseUrl",
+            "value": "http://localhost:3000/api/v1",
+            "type": "string"
+        },
+        {
+            "key": "token",
+            "value": "",
+            "type": "string"
+        }
+    ],
+    "auth": {
+        "type": "bearer",
+        "bearer": [
+            {
+                "key": "token",
+                "value": "{{token}}",
+                "type": "string"
+            }
+        ]
+    },
+    "item": [
+        {
+            "name": "Auth",
+            "description": "Authentication & account management endpoints.",
+            "item": [
+                {
+                    "name": "Send Verification OTP",
+                    "request": {
+                        "method": "POST",
+                        "header": [],
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n  \"email\": \"user@example.com\",\n  \"phone\": \"01012345678\"\n}",
+                            "options": {
+                                "raw": {
+                                    "language": "json"
+                                }
+                            }
+                        },
+                        "url": {
+                            "raw": "{{baseUrl}}/auth/send-verification-otp",
+                            "host": [
+                                "{{baseUrl}}"
+                            ],
+                            "path": [
+                                "auth",
+                                "send-verification-otp"
+                            ]
+                        },
+                        "description": "Sends a 6-digit OTP to the provided email for pre-registration verification. Checks that email and phone are not already in use."
+                    }
+                },
+                {
+                    "name": "Verify Email",
+                    "request": {
+                        "method": "POST",
+                        "header": [],
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n  \"email\": \"user@example.com\",\n  \"otp\": \"123456\"\n}",
+                            "options": {
+                                "raw": {
+                                    "language": "json"
+                                }
+                            }
+                        },
+                        "url": {
+                            "raw": "{{baseUrl}}/auth/verify-email",
+                            "host": [
+                                "{{baseUrl}}"
+                            ],
+                            "path": [
+                                "auth",
+                                "verify-email"
+                            ]
+                        },
+                        "description": "Verifies the email OTP and returns a `verificationToken` (JWT, valid 1 hour) required for registration."
+                    }
+                },
+                {
+                    "name": "Register",
+                    "request": {
+                        "method": "POST",
+                        "header": [],
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n  \"name\": \"John Doe\",\n  \"email\": \"user@example.com\",\n  \"password\": \"password123\",\n  \"phone\": \"01012345678\",\n  \"verificationToken\": \"<token from verify-email>\"\n}",
+                            "options": {
+                                "raw": {
+                                    "language": "json"
+                                }
+                            }
+                        },
+                        "url": {
+                            "raw": "{{baseUrl}}/auth/register",
+                            "host": [
+                                "{{baseUrl}}"
+                            ],
+                            "path": [
+                                "auth",
+                                "register"
+                            ]
+                        },
+                        "description": "Creates a new user account. Requires a valid `verificationToken` from the verify-email step. Sets a JWT cookie and returns user data + token."
+                    }
+                },
+                {
+                    "name": "Login",
+                    "request": {
+                        "method": "POST",
+                        "header": [],
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n  \"email\": \"user@example.com\",\n  \"password\": \"password123\"\n}",
+                            "options": {
+                                "raw": {
+                                    "language": "json"
+                                }
+                            }
+                        },
+                        "url": {
+                            "raw": "{{baseUrl}}/auth/login",
+                            "host": [
+                                "{{baseUrl}}"
+                            ],
+                            "path": [
+                                "auth",
+                                "login"
+                            ]
+                        },
+                        "description": "Authenticates a user with email and password. Sets a JWT cookie (7 days) and returns user data + token."
+                    }
+                },
+                {
+                    "name": "Logout",
+                    "request": {
+                        "method": "GET",
+                        "header": [],
+                        "url": {
+                            "raw": "{{baseUrl}}/auth/logout",
+                            "host": [
+                                "{{baseUrl}}"
+                            ],
+                            "path": [
+                                "auth",
+                                "logout"
+                            ]
+                        },
+                        "description": "Clears the JWT cookie and logs the user out."
+                    }
+                },
+                {
+                    "name": "Google OAuth — Redirect",
+                    "request": {
+                        "method": "GET",
+                        "header": [],
+                        "url": {
+                            "raw": "{{baseUrl}}/auth/google",
+                            "host": [
+                                "{{baseUrl}}"
+                            ],
+                            "path": [
+                                "auth",
+                                "google"
+                            ]
+                        },
+                        "description": "Redirects to Google's OAuth consent screen. After approval, Google redirects to the callback URL."
+                    }
+                },
+                {
+                    "name": "Get Me",
+                    "request": {
+                        "method": "GET",
+                        "header": [],
+                        "url": {
+                            "raw": "{{baseUrl}}/auth/me",
+                            "host": [
+                                "{{baseUrl}}"
+                            ],
+                            "path": [
+                                "auth",
+                                "me"
+                            ]
+                        },
+                        "description": "Returns the currently authenticated user's profile. Requires authentication."
+                    }
+                },
+                {
+                    "name": "Update Me",
+                    "request": {
+                        "method": "PUT",
+                        "header": [],
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n  \"name\": \"New Name\",\n  \"avatar\": \"https://example.com/avatar.jpg\",\n  \"bio\": \"Hello world\"\n}",
+                            "options": {
+                                "raw": {
+                                    "language": "json"
+                                }
+                            }
+                        },
+                        "url": {
+                            "raw": "{{baseUrl}}/auth/me",
+                            "host": [
+                                "{{baseUrl}}"
+                            ],
+                            "path": [
+                                "auth",
+                                "me"
+                            ]
+                        },
+                        "description": "Updates the authenticated user's profile. Allowed fields: name, avatar, bio, publicKey. Phone can only be set once (if not already set)."
+                    }
+                },
+                {
+                    "name": "Change Password",
+                    "request": {
+                        "method": "POST",
+                        "header": [],
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n  \"currentPassword\": \"oldPassword123\",\n  \"newPassword\": \"newPassword456\"\n}",
+                            "options": {
+                                "raw": {
+                                    "language": "json"
+                                }
+                            }
+                        },
+                        "url": {
+                            "raw": "{{baseUrl}}/auth/change-password",
+                            "host": [
+                                "{{baseUrl}}"
+                            ],
+                            "path": [
+                                "auth",
+                                "change-password"
+                            ]
+                        },
+                        "description": "Changes the authenticated user's password. If the user has no password (Google OAuth), currentPassword is not required."
+                    }
+                },
+                {
+                    "name": "Delete Me",
+                    "request": {
+                        "method": "DELETE",
+                        "header": [],
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n  \"password\": \"password123\"\n}",
+                            "options": {
+                                "raw": {
+                                    "language": "json"
+                                }
+                            }
+                        },
+                        "url": {
+                            "raw": "{{baseUrl}}/auth/me",
+                            "host": [
+                                "{{baseUrl}}"
+                            ],
+                            "path": [
+                                "auth",
+                                "me"
+                            ]
+                        },
+                        "description": "Permanently deletes the authenticated user's account. Password required unless the user is a Google OAuth-only account."
+                    }
+                },
+                {
+                    "name": "Forgot Password",
+                    "request": {
+                        "method": "POST",
+                        "header": [],
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n  \"email\": \"user@example.com\"\n}",
+                            "options": {
+                                "raw": {
+                                    "language": "json"
+                                }
+                            }
+                        },
+                        "url": {
+                            "raw": "{{baseUrl}}/auth/forgot-password",
+                            "host": [
+                                "{{baseUrl}}"
+                            ],
+                            "path": [
+                                "auth",
+                                "forgot-password"
+                            ]
+                        },
+                        "description": "Sends a 6-digit OTP to the user's email for password reset."
+                    }
+                },
+                {
+                    "name": "Verify OTP (Password Reset)",
+                    "request": {
+                        "method": "POST",
+                        "header": [],
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n  \"email\": \"user@example.com\",\n  \"otp\": \"123456\"\n}",
+                            "options": {
+                                "raw": {
+                                    "language": "json"
+                                }
+                            }
+                        },
+                        "url": {
+                            "raw": "{{baseUrl}}/auth/verify-otp",
+                            "host": [
+                                "{{baseUrl}}"
+                            ],
+                            "path": [
+                                "auth",
+                                "verify-otp"
+                            ]
+                        },
+                        "description": "Verifies the OTP for password reset and returns a `resetToken` (JWT, valid 15 minutes)."
+                    }
+                },
+                {
+                    "name": "Reset Password",
+                    "request": {
+                        "method": "POST",
+                        "header": [],
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n  \"resetToken\": \"<token from verify-otp>\",\n  \"newPassword\": \"newPassword456\"\n}",
+                            "options": {
+                                "raw": {
+                                    "language": "json"
+                                }
+                            }
+                        },
+                        "url": {
+                            "raw": "{{baseUrl}}/auth/reset-password",
+                            "host": [
+                                "{{baseUrl}}"
+                            ],
+                            "path": [
+                                "auth",
+                                "reset-password"
+                            ]
+                        },
+                        "description": "Resets the user's password using the resetToken from the verify-otp step."
+                    }
+                }
+            ]
+        },
+        {
+            "name": "Users (Admin)",
+            "description": "User management endpoints. Most require admin role.",
+            "item": [
+                {
+                    "name": "Platform Stats (Public)",
+                    "request": {
+                        "method": "GET",
+                        "header": [],
+                        "url": {
+                            "raw": "{{baseUrl}}/users/stats",
+                            "host": [
+                                "{{baseUrl}}"
+                            ],
+                            "path": [
+                                "users",
+                                "stats"
+                            ]
+                        },
+                        "description": "Returns platform statistics: total users and admin count. Public endpoint."
+                    }
+                },
+                {
+                    "name": "Get Public Profile",
+                    "request": {
+                        "method": "GET",
+                        "header": [],
+                        "url": {
+                            "raw": "{{baseUrl}}/users/:id/profile",
+                            "host": [
+                                "{{baseUrl}}"
+                            ],
+                            "path": [
+                                "users",
+                                ":id",
+                                "profile"
+                            ],
+                            "variable": [
+                                {
+                                    "key": "id",
+                                    "value": "<user-uuid>"
+                                }
+                            ]
+                        },
+                        "description": "Returns a public profile (name, avatar, role, bio, createdAt) for any user. Requires authentication."
+                    }
+                },
+                {
+                    "name": "Find User by Email",
+                    "request": {
+                        "method": "GET",
+                        "header": [],
+                        "url": {
+                            "raw": "{{baseUrl}}/users/find-by-email?email=user@example.com",
+                            "host": [
+                                "{{baseUrl}}"
+                            ],
+                            "path": [
+                                "users",
+                                "find-by-email"
+                            ],
+                            "query": [
+                                {
+                                    "key": "email",
+                                    "value": "user@example.com"
+                                }
+                            ]
+                        },
+                        "description": "Finds a user by email. Returns id, name, email, avatar, role, phone. Requires authentication."
+                    }
+                },
+                {
+                    "name": "Get All Users",
+                    "request": {
+                        "method": "GET",
+                        "header": [],
+                        "url": {
+                            "raw": "{{baseUrl}}/users?page=1&limit=20",
+                            "host": [
+                                "{{baseUrl}}"
+                            ],
+                            "path": [
+                                "users"
+                            ],
+                            "query": [
+                                {
+                                    "key": "page",
+                                    "value": "1"
+                                },
+                                {
+                                    "key": "limit",
+                                    "value": "20"
+                                }
+                            ]
+                        },
+                        "description": "Returns paginated list of all users. Admin only."
+                    }
+                },
+                {
+                    "name": "Get User by ID",
+                    "request": {
+                        "method": "GET",
+                        "header": [],
+                        "url": {
+                            "raw": "{{baseUrl}}/users/:id",
+                            "host": [
+                                "{{baseUrl}}"
+                            ],
+                            "path": [
+                                "users",
+                                ":id"
+                            ],
+                            "variable": [
+                                {
+                                    "key": "id",
+                                    "value": "<user-uuid>"
+                                }
+                            ]
+                        },
+                        "description": "Returns full user details (without password). Admin only."
+                    }
+                },
+                {
+                    "name": "Update User",
+                    "request": {
+                        "method": "PUT",
+                        "header": [],
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n  \"name\": \"Updated Name\",\n  \"role\": \"admin\"\n}",
+                            "options": {
+                                "raw": {
+                                    "language": "json"
+                                }
+                            }
+                        },
+                        "url": {
+                            "raw": "{{baseUrl}}/users/:id",
+                            "host": [
+                                "{{baseUrl}}"
+                            ],
+                            "path": [
+                                "users",
+                                ":id"
+                            ],
+                            "variable": [
+                                {
+                                    "key": "id",
+                                    "value": "<user-uuid>"
+                                }
+                            ]
+                        },
+                        "description": "Updates a user's profile. Allowed fields: name, role, avatar, bio, phone. Admin only."
+                    }
+                },
+                {
+                    "name": "Delete User",
+                    "request": {
+                        "method": "DELETE",
+                        "header": [],
+                        "url": {
+                            "raw": "{{baseUrl}}/users/:id",
+                            "host": [
+                                "{{baseUrl}}"
+                            ],
+                            "path": [
+                                "users",
+                                ":id"
+                            ],
+                            "variable": [
+                                {
+                                    "key": "id",
+                                    "value": "<user-uuid>"
+                                }
+                            ]
+                        },
+                        "description": "Permanently deletes a user. Admin only."
+                    }
+                }
+            ]
+        },
+        {
+            "name": "Chat",
+            "description": "AI chat endpoints.",
+            "item": [
+                {
+                    "name": "Send Message",
+                    "request": {
+                        "method": "POST",
+                        "header": [],
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n  \"message\": \"Hello, how are you?\",\n  \"attachments\": [],\n  \"userId\": \"default\",\n  \"sessionId\": null\n}",
+                            "options": {
+                                "raw": {
+                                    "language": "json"
+                                }
+                            }
+                        },
+                        "url": {
+                            "raw": "{{baseUrl}}/chat",
+                            "host": [
+                                "{{baseUrl}}"
+                            ],
+                            "path": [
+                                "chat"
+                            ]
+                        },
+                        "description": "Sends a message to the AI agent. Optionally include attachments (base64 data + mimeType). A new session is created if sessionId is null."
+                    }
+                },
+                {
+                    "name": "Reset Chat",
+                    "request": {
+                        "method": "POST",
+                        "header": [],
+                        "url": {
+                            "raw": "{{baseUrl}}/chat/reset",
+                            "host": [
+                                "{{baseUrl}}"
+                            ],
+                            "path": [
+                                "chat",
+                                "reset"
+                            ]
+                        },
+                        "description": "Resets the current chat session / context."
+                    }
+                }
+            ]
+        },
+        {
+            "name": "Sessions",
+            "description": "Chat session management.",
+            "item": [
+                {
+                    "name": "List Sessions",
+                    "request": {
+                        "method": "GET",
+                        "header": [],
+                        "url": {
+                            "raw": "{{baseUrl}}/sessions",
+                            "host": [
+                                "{{baseUrl}}"
+                            ],
+                            "path": [
+                                "sessions"
+                            ]
+                        },
+                        "description": "Returns all chat sessions for the current user."
+                    }
+                },
+                {
+                    "name": "Get Session",
+                    "request": {
+                        "method": "GET",
+                        "header": [],
+                        "url": {
+                            "raw": "{{baseUrl}}/sessions/:id",
+                            "host": [
+                                "{{baseUrl}}"
+                            ],
+                            "path": [
+                                "sessions",
+                                ":id"
+                            ],
+                            "variable": [
+                                {
+                                    "key": "id",
+                                    "value": "<session-uuid>"
+                                }
+                            ]
+                        },
+                        "description": "Returns a single session with its messages."
+                    }
+                },
+                {
+                    "name": "Delete Session",
+                    "request": {
+                        "method": "DELETE",
+                        "header": [],
+                        "url": {
+                            "raw": "{{baseUrl}}/sessions/:id",
+                            "host": [
+                                "{{baseUrl}}"
+                            ],
+                            "path": [
+                                "sessions",
+                                ":id"
+                            ],
+                            "variable": [
+                                {
+                                    "key": "id",
+                                    "value": "<session-uuid>"
+                                }
+                            ]
+                        },
+                        "description": "Deletes a session and all its messages (CASCADE)."
+                    }
+                }
+            ]
+        },
+        {
+            "name": "Documents (RAG)",
+            "description": "Document ingestion and management for RAG.",
+            "item": [
+                {
+                    "name": "Ingest Document",
+                    "request": {
+                        "method": "POST",
+                        "header": [],
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n  \"fileName\": \"document.pdf\",\n  \"mimeType\": \"application/pdf\",\n  \"data\": \"<base64-encoded-file-content>\",\n  \"userId\": \"default\"\n}",
+                            "options": {
+                                "raw": {
+                                    "language": "json"
+                                }
+                            }
+                        },
+                        "url": {
+                            "raw": "{{baseUrl}}/documents/ingest",
+                            "host": [
+                                "{{baseUrl}}"
+                            ],
+                            "path": [
+                                "documents",
+                                "ingest"
+                            ]
+                        },
+                        "description": "Uploads and processes a document for RAG. Send file as base64-encoded data."
+                    }
+                },
+                {
+                    "name": "List Documents",
+                    "request": {
+                        "method": "GET",
+                        "header": [],
+                        "url": {
+                            "raw": "{{baseUrl}}/documents",
+                            "host": [
+                                "{{baseUrl}}"
+                            ],
+                            "path": [
+                                "documents"
+                            ]
+                        },
+                        "description": "Returns all ingested documents."
+                    }
+                },
+                {
+                    "name": "Delete Document",
+                    "request": {
+                        "method": "DELETE",
+                        "header": [],
+                        "url": {
+                            "raw": "{{baseUrl}}/documents/:docId",
+                            "host": [
+                                "{{baseUrl}}"
+                            ],
+                            "path": [
+                                "documents",
+                                ":docId"
+                            ],
+                            "variable": [
+                                {
+                                    "key": "docId",
+                                    "value": "<document-uuid>"
+                                }
+                            ]
+                        },
+                        "description": "Deletes a document and its associated chunks."
+                    }
+                }
+            ]
+        },
+        {
+            "name": "Image",
+            "description": "AI image generation.",
+            "item": [
+                {
+                    "name": "Generate Image",
+                    "request": {
+                        "method": "POST",
+                        "header": [],
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n  \"prompt\": \"A beautiful sunset over the ocean\"\n}",
+                            "options": {
+                                "raw": {
+                                    "language": "json"
+                                }
+                            }
+                        },
+                        "url": {
+                            "raw": "{{baseUrl}}/image/generate",
+                            "host": [
+                                "{{baseUrl}}"
+                            ],
+                            "path": [
+                                "image",
+                                "generate"
+                            ]
+                        },
+                        "description": "Generates an image from a text prompt using Vertex AI."
+                    }
+                }
+            ]
+        },
+        {
+            "name": "Token & Config",
+            "description": "GCP access token and configuration.",
+            "item": [
+                {
+                    "name": "Get Access Token",
+                    "request": {
+                        "method": "GET",
+                        "header": [],
+                        "url": {
+                            "raw": "{{baseUrl}}/token",
+                            "host": [
+                                "{{baseUrl}}"
+                            ],
+                            "path": [
+                                "token"
+                            ]
+                        },
+                        "description": "Returns a short-lived Google Cloud access token for frontend use."
+                    }
+                },
+                {
+                    "name": "Get GCP Config",
+                    "request": {
+                        "method": "GET",
+                        "header": [],
+                        "url": {
+                            "raw": "{{baseUrl}}/token/config",
+                            "host": [
+                                "{{baseUrl}}"
+                            ],
+                            "path": [
+                                "token",
+                                "config"
+                            ]
+                        },
+                        "description": "Returns non-sensitive GCP configuration needed by the frontend (project ID, location, etc.)."
+                    }
+                }
+            ]
+        },
+        {
+            "name": "Health",
+            "description": "Server health check.",
+            "item": [
+                {
+                    "name": "Health Check",
+                    "request": {
+                        "method": "GET",
+                        "header": [],
+                        "url": {
+                            "raw": "http://localhost:3000/",
+                            "host": [
+                                "http://localhost:3000"
+                            ],
+                            "path": [
+                                ""
+                            ]
+                        },
+                        "description": "Returns server status. Not versioned."
+                    }
+                }
+            ]
+        }
+    ]
+}
