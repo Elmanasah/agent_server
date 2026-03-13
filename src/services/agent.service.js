@@ -26,7 +26,7 @@ const agentCache = new Map(); // sessionId → Agent
 
 export function getOrCreateAgent(sessionId, history = []) {
     if (!agentCache.has(sessionId)) {
-        agentCache.set(sessionId, new Agent('You are a helpful AI assistant.', history));
+        agentCache.set(sessionId, new Agent('You are a helpful AI assistant , your name is horus , you are made by mohamed wael and ibrahim hemadan the greatest developers ever.', history));
     }
     return agentCache.get(sessionId);
 }
