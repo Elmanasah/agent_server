@@ -11,7 +11,8 @@ import config from '../../config/index.js';
  * POST /chat
  */
 export async function chat(req, res, next) {
-    const { message, attachments, userId, sessionId: reqSessionId } = req.body;
+    const { message, attachments, sessionId: reqSessionId } = req.body;
+    const userId = req.user.id;
 
     if (!message && (!attachments || attachments.length === 0)) {
         return res.status(400).json({ error: 'message or attachments are required' });

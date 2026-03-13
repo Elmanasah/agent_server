@@ -550,7 +550,7 @@
                         "header": [],
                         "body": {
                             "mode": "raw",
-                            "raw": "{\n  \"message\": \"Hello, how are you?\",\n  \"attachments\": [],\n  \"userId\": \"default\",\n  \"sessionId\": null\n}",
+                            "raw": "{\n  \"message\": \"Hello, how are you?\",\n  \"attachments\": [],\n  \"sessionId\": null\n}",
                             "options": {
                                 "raw": {
                                     "language": "json"
@@ -671,7 +671,7 @@
                         "header": [],
                         "body": {
                             "mode": "raw",
-                            "raw": "{\n  \"fileName\": \"document.pdf\",\n  \"mimeType\": \"application/pdf\",\n  \"data\": \"<base64-encoded-file-content>\",\n  \"userId\": \"default\"\n}",
+                            "raw": "{\n  \"fileName\": \"document.pdf\",\n  \"mimeType\": \"application/pdf\",\n  \"data\": \"<base64-encoded-file-content>\"\n}",
                             "options": {
                                 "raw": {
                                     "language": "json"

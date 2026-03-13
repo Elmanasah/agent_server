@@ -13,7 +13,6 @@ const ingestSchema = z.object({
     fileName: z.string().min(1),
     mimeType: z.string().min(1),
     data: z.string().min(1), // base64
-    userId: z.string().optional().default('default'),
 });
 
 router.post('/ingest', validate(ingestSchema), documentsController.ingest);

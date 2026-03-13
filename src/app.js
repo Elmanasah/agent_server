@@ -22,6 +22,7 @@ import imageRouter from './modules/image/image.routes.js';
 import tokenRouter from './modules/token/token.routes.js';
 import authRouter from './modules/auth/auth.routes.js';
 import userRouter from './modules/users/user.routes.js';
+import verifyToken from './middleware/verifyToken.js';
 
 // ── App factory ───────────────────────────────────────────────────────────────
 const app = express();
@@ -36,10 +37,10 @@ app.use(passport.initialize());
 // ── Routes (all versioned under /api/v1) ──────────────────────────────────────
 app.use('/api/v1/auth', authRouter);
 app.use('/api/v1/users', userRouter);
-app.use('/api/v1/chat', chatRouter);
-app.use('/api/v1/sessions', sessionsRouter);
-app.use('/api/v1/documents', documentsRouter);
-app.use('/api/v1/image', imageRouter);
+app.use('/api/v1/chat', verifyToken, chatRouter);
+app.use('/api/v1/sessions', verifyToken, sessionsRouter);
+app.use('/api/v1/documents', verifyToken, documentsRouter);
+app.use('/api/v1/image', verifyToken, imageRouter);
 app.use('/api/v1/token', tokenRouter);
 
 // Health check

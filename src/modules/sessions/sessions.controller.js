@@ -6,10 +6,10 @@ import { listSessions, getSession, deleteSession } from '../../services/session.
 import { evictAgent } from '../../services/agent.service.js';
 
 /**
- * GET /sessions?userId=default
+ * GET /sessions
  */
 export async function list(req, res, next) {
-    const userId = req.query.userId ?? 'default';
+    const userId = req.user.id;
     try {
         const sessions = await listSessions(userId);
         res.json({ sessions });
@@ -19,10 +19,10 @@ export async function list(req, res, next) {
 }
 
 /**
- * GET /sessions/:id?userId=default
+ * GET /sessions/:id
  */
 export async function get(req, res, next) {
-    const userId = req.query.userId ?? 'default';
+    const userId = req.user.id;
     try {
         const session = await getSession(userId, req.params.id);
         if (!session) return res.status(404).json({ error: 'Session not found' });
@@ -33,9 +33,10 @@ export async function get(req, res, next) {
 }
 
 /**
- * DELETE /sessions/:id?userId=default
+ * DELETE /sessions/:id
  */
 export async function remove(req, res, next) {
+    const userId = req.user.id;
     try {
         evictAgent(req.params.id);
         await deleteSession(req.params.id);

@@ -14,17 +14,12 @@ import { User } from "../../models/index.js";
  * POST /ingest
  */
 export async function ingest(req, res, next) {
-  const { fileName, mimeType, data, userId } = req.body;
+  const { fileName, mimeType, data } = req.body;
+  const userId = req.user.id;
   try {
-    // Get or create the Sequelize User to associate the Document row
-    let user = await User.findOne({ where: { uid: userId } });
-    if (!user) {
-      user = await User.create({ uid: userId });
-    }
-
     const { docId, chunkCount } = await ingestDocument({
       userId,
-      dbUserId: user.id,
+      dbUserId: userId,
       fileName,
       base64Data: data,
       mimeType,
@@ -41,7 +36,7 @@ export async function ingest(req, res, next) {
  * GET /documents?userId=default
  */
 export async function list(req, res, next) {
-  const userId = req.query.userId ?? "default";
+  const userId = req.user.id;
   try {
     const documents = await listDocuments(userId);
     res.json({ documents });
@@ -54,7 +49,7 @@ export async function list(req, res, next) {
  * DELETE /documents/:docId?userId=default
  */
 export async function remove(req, res, next) {
-  const userId = req.query.userId ?? "default";
+  const userId = req.user.id;
   try {
     const result = await deleteDocument(userId, req.params.docId);
     res.json({ status: "ok", ...result });

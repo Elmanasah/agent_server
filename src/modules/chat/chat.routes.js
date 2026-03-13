@@ -15,7 +15,6 @@ const chatSchema = z.object({
         data: z.string(),
         mimeType: z.string(),
     })).optional().default([]),
-    userId: z.string().optional().default('default'),
     sessionId: z.string().uuid().optional().nullable().default(null),
 });
 
