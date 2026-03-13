@@ -41,7 +41,7 @@ app.use('/api/v1/chat', verifyToken, chatRouter);
 app.use('/api/v1/sessions', verifyToken, sessionsRouter);
 app.use('/api/v1/documents', verifyToken, documentsRouter);
 app.use('/api/v1/image', verifyToken, imageRouter);
-app.use('/api/v1/token', tokenRouter);
+app.use('/api/v1/token', verifyToken, tokenRouter);
 
 // Health check
 app.get('/', (_req, res) => res.json({ status: 'ok', message: 'AI Agent is running 🚀' }));

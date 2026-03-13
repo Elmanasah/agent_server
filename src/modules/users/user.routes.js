@@ -15,16 +15,16 @@ import { validateUpdateUser, validate } from "../auth/auth.validator.js";
 const userRouter = Router();
 
 // ── Public routes ───────────────────────────────────────────────────────────
-userRouter.get("/stats", getPlatformStats);
+// userRouter.get("/stats", getPlatformStats);
 
 // ── Authenticated routes ────────────────────────────────────────────────────
 userRouter.use(verifyToken);
 
 // GET /api/v1/users/:id/profile — public profile for any logged-in user
-userRouter.get("/:id/profile", getPublicProfile);
+// userRouter.get("/:id/profile", getPublicProfile);
 
-// GET /api/v1/users/find-by-email — accessible by all authenticated users
-userRouter.get("/find-by-email", findUserByEmail);
+// // GET /api/v1/users/find-by-email — accessible by all authenticated users
+// userRouter.get("/find-by-email", findUserByEmail);
 
 // ── Admin-only routes ───────────────────────────────────────────────────────
 userRouter.use(allowTo("admin"));

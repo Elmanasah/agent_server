@@ -8,10 +8,12 @@ import { User, Session, Message } from "../models/index.js";
 
 // ── Internal helpers ──────────────────────────────────────────────────────────
 
-async function upsertUser(uid) {
-  let user = await User.findOne({ where: { uid } });
+async function upsertUser(id) {
+  let user = await User.findOne({ where: { id } });
   if (!user) {
-    user = await User.create({ uid });
+    // If we're upserting an ID that doesn't exist, we just fail gracefully now
+    // as users should be created via Auth explicitly.
+    throw new Error('User not found in system. Please register first.');
   }
   return user;
 }
@@ -24,8 +26,8 @@ async function upsertUser(uid) {
  * @param {string} firstMessage
  * @returns {Promise<Session>}
  */
-export async function createSession(uid, firstMessage = "New conversation") {
-  const user = await upsertUser(uid);
+export async function createSession(id, firstMessage = "New conversation") {
+  const user = await upsertUser(id);
   const title = firstMessage.slice(0, 60).trim() || "New conversation";
 
   const session = await Session.create({ title, userId: user.id });
@@ -41,8 +43,8 @@ export async function createSession(uid, firstMessage = "New conversation") {
  * @param {string} sessionId
  * @returns {Promise<Session|null>}
  */
-export async function getSession(uid, sessionId) {
-  const user = await User.findOne({ where: { uid } });
+export async function getSession(id, sessionId) {
+  const user = await User.findOne({ where: { id } });
   if (!user) return null;
 
   return Session.findOne({
@@ -82,8 +84,8 @@ export async function appendTurn(sessionId, userParts, modelReply) {
  * @param {string} uid
  * @returns {Promise<object[]>}
  */
-export async function listSessions(uid) {
-  const user = await User.findOne({ where: { uid } });
+export async function listSessions(id) {
+  const user = await User.findOne({ where: { id } });
   if (!user) return [];
 
   const sessions = await Session.findAll({
