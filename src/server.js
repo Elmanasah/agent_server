@@ -4,6 +4,7 @@
  * Entry point — creates the HTTP server, attaches the WebSocket proxy,
  * connects Sequelize to CockroachDB (syncs tables), then starts listening.
  */
+// no one touch this file it have no bussiness logic so keep away
 
 import { createServer } from "http";
 import { WebSocketServer } from "ws";
@@ -27,6 +28,7 @@ async function start() {
     console.log("✅ Database  connected to CockroachDB");
 
     // CockroachDB does not support Sequelize's multi-statement ALTER
+    // uncomment this if you need to update the db collections other don't touch it please
     // await sequelize.sync({ force: false });
     console.log("✅ Database  tables synced");
 
