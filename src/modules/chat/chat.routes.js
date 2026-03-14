@@ -1,5 +1,8 @@
 /**
  * src/modules/chat/chat.routes.js
+ *
+ * The /chat POST endpoint streams SSE. The validate middleware runs before
+ * the controller so it can still reject bad input early (before SSE headers).
  */
 
 import { Router } from 'express';
@@ -18,7 +21,10 @@ const chatSchema = z.object({
     sessionId: z.string().uuid().optional().nullable().default(null),
 });
 
+// SSE streaming chat — POST (fetch with ReadableStream on client side)
 router.post('/', validate(chatSchema), chatController.chat);
+
+// Reset session agent cache
 router.post('/reset', chatController.reset);
 
 export default router;

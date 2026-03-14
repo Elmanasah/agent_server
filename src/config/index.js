@@ -37,6 +37,9 @@ const config = Object.freeze({
 
     // ── Feature flags ──────────────────────────────────────────────────────
     ragEnabled: Boolean(process.env.VECTOR_SEARCH_INDEX_ID),
+
+    // ── Auth ─────────────────────────────────────────────────────────────────
+    jwtSecret: process.env.SECRET_KEY,
 });
 
 export default config;
