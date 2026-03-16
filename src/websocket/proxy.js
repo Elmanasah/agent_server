@@ -4,12 +4,14 @@
  * Gemini Live WebSocket — Smart Agent Proxy.
  *
  * Flow:
- *   1. Browser connects → sends { jwt_token, service_url? }
- *   2. Server authenticates via JWT, builds system prompt for user
- *   3. Server opens WS to GCP BidiGenerateContent
- *   4. Server intercepts GCP messages that contain functionCall parts
- *   5. Server executes tools (RAG, image gen, DB search) and sends functionResponse to GCP
- *   6. GCP sends final audio/text reply → forwarded to browser
+ *   1. Browser connects → sends { jwt_token } or { bearer_token }
+ *   2. Server authenticates, opens WS to GCP BidiGenerateContent
+ *   3. Server intercepts the setup message and injects tool declarations
+ *   4. Server intercepts BidiGenerateContentToolCall messages from GCP
+ *   5. Server executes tools (RAG, image gen, canvas, diagrams) via LiveAgentSession
+ *   6. Server sends BidiGenerateContentToolResponse back to GCP
+ *   7. Server sends rich tool_result payloads to browser for Canvas UI
+ *   8. GCP sends final audio/text reply → forwarded to browser
  *
  * @param {import('ws').WebSocketServer} wss
  */
@@ -18,6 +20,7 @@ import { WebSocket } from "ws";
 import config from "../config/index.js";
 import { LiveAgentSession } from "../services/liveAgent.service.js";
 import { buildSystemPrompt } from "../config/systemPrompt.js";
+import { TOOL_DECLARATIONS } from "../config/toolDeclarations.js";
 
 const DEFAULT_SERVICE_URL = `wss://${config.gcpApiHost}/ws/google.cloud.aiplatform.v1beta1.LlmBidiService/BidiGenerateContent`;
 
@@ -144,7 +147,20 @@ export function attachProxy(wss) {
         return;
       }
 
-      // ── Step 3: Forward client messages to GCP ────────────────────────
+      // ── Step 3: Intercept setup messages and inject tool declarations ─
+      try {
+        const parsed = JSON.parse(raw);
+        if (parsed.setup) {
+          parsed.setup.tools = [{ function_declarations: TOOL_DECLARATIONS }];
+          console.log(`[proxy] Injected ${TOOL_DECLARATIONS.length} tool declarations into setup`);
+          if (gcpWs?.readyState === WebSocket.OPEN) {
+            gcpWs.send(JSON.stringify(parsed));
+          }
+          return;
+        }
+      } catch { /* not JSON or no setup — forward as-is */ }
+
+      // ── Step 4: Forward client messages to GCP ────────────────────────
       if (gcpWs?.readyState === WebSocket.OPEN) {
         gcpWs.send(raw);
       }

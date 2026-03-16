@@ -5,10 +5,17 @@
  *
  * Each browser WebSocket connection gets a LiveAgentSession that:
  *  1. Authenticates the user via JWT
- *  2. Detects function calls in GCP BidiGenerateContent stream
- *  3. Executes tools server-side (RAG, image gen, DB search)
- *  4. Sends tool_response frames back to GCP
- *  5. Forwards final audio/text to the browser client
+ *  2. Detects BidiGenerateContentToolCall messages from GCP
+ *  3. Executes tools server-side (RAG, image gen, DB search, canvas, diagrams)
+ *  4. Sends BidiGenerateContentToolResponse back to GCP
+ *  5. Sends rich tool_result payloads to the browser for Canvas rendering
+ *  6. Forwards final audio/text to the browser client
+ *
+ * IMPORTANT: BidiGenerateContent uses a dedicated message format for function
+ * calling (separate from serverContent). Tool calls arrive as:
+ *   { toolCall: { functionCalls: [{ name, args, id }] } }
+ * And responses must be sent as:
+ *   { toolResponse: { functionResponses: [{ name, response, id }] } }
  */
 
 import jwt from 'jsonwebtoken';
@@ -19,34 +26,46 @@ import { generateImage } from './image.service.js';
 import { searchSessions } from './sessionSearch.service.js';
 import { User } from '../models/index.js';
 
-// ── Tool executor (shared with agent.service.js logic) ────────────────────────
+// ── Tool executor (returns structured results like agent.service.js) ──────────
 
 async function executeTool(name, args, userId) {
     console.log(`[liveAgent] tool: ${name}`, args);
 
     switch (name) {
         case 'search_knowledge_base': {
-            if (!userId) return 'No user context for knowledge base search.';
+            if (!userId) return { text: 'No user context for knowledge base search.' };
             const context = await retrieveContext(userId, args.query).catch(() => null);
-            return context || 'No relevant documents found.';
+            return { text: context || 'No relevant documents found.' };
         }
         case 'search_sessions': {
-            if (!userId) return 'No user context for session search.';
+            if (!userId) return { text: 'No user context for session search.' };
             const result = await searchSessions(userId, args.query).catch(() => null);
-            return result || 'No relevant past conversations found.';
+            return { text: result || 'No relevant past conversations found.' };
         }
         case 'generate_image': {
             const img = await generateImage(args.prompt);
-            return `Image generated. URL: ${img.imageUrl.substring(0, 80)}...`;
+            return {
+                text: `Image generated for: "${args.prompt}"`,
+                image: { url: img.imageUrl, prompt: args.prompt },
+            };
         }
         case 'render_canvas':
-            return `Canvas content ready: ${(args.title || 'Workspace').slice(0, 40)}`;
+            return {
+                text: `Canvas content set: "${(args.title || 'Workspace').slice(0, 40)}"`,
+                canvas: { markdown: args.markdown, title: args.title || 'Workspace' },
+            };
         case 'render_diagram':
-            return `Diagram ready: ${(args.title || 'Diagram').slice(0, 40)}`;
+            return {
+                text: `Diagram rendered: "${(args.title || 'Diagram').slice(0, 40)}"`,
+                diagram: { syntax: args.mermaid_syntax, title: args.title || 'Diagram' },
+            };
         case 'render_math':
-            return `Math plot ready: ${(args.title || 'Plot').slice(0, 40)}`;
+            return {
+                text: `Math plot rendered: "${(args.title || 'Plot').slice(0, 40)}"`,
+                math: { json: args.json, title: args.title || 'Math Plot' },
+            };
         default:
-            return `Tool "${name}" not implemented in live agent.`;
+            return { text: `Tool "${name}" not implemented in live agent.` };
     }
 }
 
@@ -66,7 +85,7 @@ export class LiveAgentSession {
     /**
      * Authenticate using JWT in the first message payload.
      * @param {object} authData - { jwt_token, service_url? }
-     * @returns {Promise<{ userId: string, bearerToken: string, serviceUrl: string }>}
+     * @returns {Promise<{ userId: string, serviceUrl: string, systemInstruction: string }>}
      */
     async authenticate(authData) {
         if (!authData.jwt_token) throw new Error('jwt_token is required');
@@ -89,6 +108,13 @@ export class LiveAgentSession {
 
     /**
      * Process a message from GCP. Detect function calls and execute them.
+     *
+     * BidiGenerateContent uses TWO formats for function calls:
+     *   1. Dedicated: { toolCall: { functionCalls: [{ name, args, id }] } }
+     *   2. Legacy/inline: { serverContent: { modelTurn: { parts: [{ functionCall }] } } }
+     *
+     * We handle both formats. Responses must use the matching format.
+     *
      * @param {string} rawData - Raw JSON string from GCP WebSocket
      * @param {WebSocket} gcpWs - GCP WebSocket to send tool responses back to
      * @returns {boolean} - true if we handled it (tool call), false if caller should forward as-is
@@ -97,45 +123,103 @@ export class LiveAgentSession {
         let data;
         try { data = JSON.parse(rawData); } catch { return false; }
 
-        // Check for function calls in server content
+        // ── Format 1: BidiGenerateContentToolCall (dedicated message) ─────
+        // This is the primary format used by BidiGenerateContent for function calling
+        const toolCallMsg = data?.toolCall;
+        if (toolCallMsg?.functionCalls?.length > 0) {
+            console.log(`[liveAgent] Got BidiGenerateContentToolCall with ${toolCallMsg.functionCalls.length} call(s)`);
+
+            const functionResponses = [];
+
+            for (const fc of toolCallMsg.functionCalls) {
+                const { name, args, id } = fc;
+
+                try {
+                    const output = await executeTool(name, args, this.userId);
+
+                    // Build function response for GCP
+                    const gcpText = typeof output === 'object' ? (output.text || 'Done') : String(output);
+                    functionResponses.push({
+                        name,
+                        id,
+                        response: { output: gcpText },
+                    });
+
+                    // Send rich tool_result to browser client for Canvas/UI updates
+                    if (this.clientWs.readyState === 1) {
+                        const clientPayload = { tool_result: { name } };
+                        if (typeof output === 'object') {
+                            if (output.canvas) clientPayload.tool_result.canvas = output.canvas;
+                            if (output.diagram) clientPayload.tool_result.diagram = output.diagram;
+                            if (output.math) clientPayload.tool_result.math = output.math;
+                            if (output.image) clientPayload.tool_result.image = output.image;
+                        }
+                        this.clientWs.send(JSON.stringify(clientPayload));
+                    }
+
+                } catch (err) {
+                    console.error(`[liveAgent] Tool error (${name}):`, err.message);
+                    functionResponses.push({
+                        name,
+                        id,
+                        response: { error: err.message },
+                    });
+                }
+            }
+
+            // Send BidiGenerateContentToolResponse back to GCP
+            if (gcpWs && gcpWs.readyState === 1) {
+                gcpWs.send(JSON.stringify({
+                    tool_response: {
+                        function_responses: functionResponses,
+                    },
+                }));
+            }
+
+            return true;
+        }
+
+        // ── Format 2: Inline functionCall parts in serverContent (fallback) ──
         const parts = data?.serverContent?.modelTurn?.parts ?? [];
         const functionCalls = parts.filter(p => p.functionCall);
 
         if (functionCalls.length === 0) return false; // Nothing special — let proxy forward
 
-        console.log(`[liveAgent] Got ${functionCalls.length} function call(s)`);
+        console.log(`[liveAgent] Got ${functionCalls.length} inline function call(s)`);
 
-        // Execute each function call and respond
         for (const part of functionCalls) {
             const { name, args } = part.functionCall;
 
             try {
                 const output = await executeTool(name, args, this.userId);
+                const gcpText = typeof output === 'object' ? (output.text || 'Done') : String(output);
 
-                // Send tool_response back to GCP
-                const toolResponse = {
-                    tool_response: {
-                        function_responses: [{
-                            name,
-                            response: { output: String(output) },
-                        }],
-                    },
-                };
-
-                if (gcpWs && gcpWs.readyState === 1 /* OPEN */) {
-                    gcpWs.send(JSON.stringify(toolResponse));
+                // Send tool_response back to GCP (inline format)
+                if (gcpWs && gcpWs.readyState === 1) {
+                    gcpWs.send(JSON.stringify({
+                        tool_response: {
+                            function_responses: [{
+                                name,
+                                response: { output: gcpText },
+                            }],
+                        },
+                    }));
                 }
 
-                // Forward tool metadata to browser client for UI updates
+                // Forward rich tool_result to browser client
                 if (this.clientWs.readyState === 1) {
-                    this.clientWs.send(JSON.stringify({
-                        tool_result: { name, output: String(output).slice(0, 200) },
-                    }));
+                    const clientPayload = { tool_result: { name } };
+                    if (typeof output === 'object') {
+                        if (output.canvas) clientPayload.tool_result.canvas = output.canvas;
+                        if (output.diagram) clientPayload.tool_result.diagram = output.diagram;
+                        if (output.math) clientPayload.tool_result.math = output.math;
+                        if (output.image) clientPayload.tool_result.image = output.image;
+                    }
+                    this.clientWs.send(JSON.stringify(clientPayload));
                 }
 
             } catch (err) {
                 console.error(`[liveAgent] Tool error (${name}):`, err.message);
-                // Send error response back to GCP so conversation continues
                 if (gcpWs && gcpWs.readyState === 1) {
                     gcpWs.send(JSON.stringify({
                         tool_response: {
@@ -149,6 +233,6 @@ export class LiveAgentSession {
             }
         }
 
-        return true; // We handled the function calls
+        return true;
     }
 }
