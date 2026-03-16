@@ -9,6 +9,9 @@ services:
       - .env
     environment:
       - NODE_ENV=production
+    volumes:
+      - ./secret.json:/app/secret.json:ro
+
     logging:
       driver: "json-file"
       options:
