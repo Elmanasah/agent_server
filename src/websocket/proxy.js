@@ -22,7 +22,8 @@ import { buildSystemPrompt } from "../config/systemPrompt.js";
 const DEFAULT_SERVICE_URL = `wss://${config.gcpApiHost}/ws/google.cloud.aiplatform.v1beta1.LlmBidiService/BidiGenerateContent`;
 
 export function attachProxy(wss) {
-  wss.on("connection", (clientWs) => {
+wss.on("connection", (clientWs, req) => { // new code take req
+  // wss.on("connection", (clientWs) => { // old code
     const session = new LiveAgentSession(clientWs);
     let gcpWs = null;
     let isAuthenticated = false;
@@ -46,16 +47,34 @@ export function attachProxy(wss) {
           if (authData.jwt_token) {
             authResult = await session.authenticate(authData);
           } else if (authData.bearer_token) {
-            // Legacy support — no user-level tool access
-            console.warn(
-              "[proxy] Legacy bearer_token auth — tools disabled for this session",
-            );
-            authResult = {
-              systemInstruction: buildSystemPrompt(),
-              serviceUrl: authData.service_url,
-            };
-            // Manually set authenticated so the session still works
-            session.isAuthenticated = true;
+            // // Legacy support — no user-level tool access
+            // console.warn(
+            //   "[proxy] Legacy bearer_token auth — tools disabled for this session",
+            // );
+            // authResult = {
+            //   systemInstruction: buildSystemPrompt(),
+            //   serviceUrl: authData.service_url,
+            // };
+            // // Manually set authenticated so the session still works
+            // session.isAuthenticated = true;
+
+              //new logic to read JWT from cookie for better security, while still supporting bearer_token for legacy clients or tools that can't use cookies
+              // ✅ Read the JWT from the cookie sent automatically by the browser
+              const cookieHeader = req.headers.cookie || '';
+              const jwtCookie = cookieHeader
+                .split(';')
+                .find(c => c.trim().startsWith('jwt='))
+                ?.split('=')[1];
+
+              if (jwtCookie && jwtCookie !== 'loggedout') {
+                // Authenticate properly — sets session.userId so tools work
+                authResult = await session.authenticate({ jwt_token: jwtCookie });
+              } else {
+                // True fallback — no user context
+                authResult = { systemInstruction: buildSystemPrompt(), serviceUrl: authData.service_url };
+                session.isAuthenticated = true;
+              }
+
           } else {
             clientWs.close(1008, "jwt_token or bearer_token required");
             return;
@@ -106,6 +125,8 @@ export function attachProxy(wss) {
 
           gcpWs.on("message", async (data) => {
             const rawGcp = data.toString();
+
+            console.log('[proxy] GCP message received, isAuthenticated:', session.isAuthenticated);
 
             // Let the session handle function calls first
             if (session.isAuthenticated) {
