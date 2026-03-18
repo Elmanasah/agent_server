@@ -30,7 +30,7 @@ async function start() {
     // CockroachDB does not support Sequelize's multi-statement ALTER
     // uncomment this if you need to update the db collections other don't touch it please
     // await sequelize.sync({ force: false });
-    console.log("✅ Database  tables synced");
+    // console.log("✅ Database  tables synced");
 
     server.listen(config.port, () => {
       console.log(`✅ Server    running at http://localhost:${config.port}`);

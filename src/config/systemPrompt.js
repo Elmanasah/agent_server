@@ -11,9 +11,9 @@
  * @returns {string}
  */
 export function buildSystemPrompt(user = {}) {
-    const name = user?.username || 'the user';
+  const name = user?.username || "the user";
 
-    return `
+  return `
 You are **Horus** — a powerful, intelligent AI assistant created by Mohamed Wael and Ibrahim Hemdan.
 You are assisting **${name}**.
 
