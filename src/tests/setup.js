@@ -5,7 +5,7 @@ import config from "../config/index.js";
 // 1. Create a STANDALONE test database instance
 const testSequelize = new Sequelize(config.testDatabaseUrl, {
   dialect: "postgres",
-  dialectOptions: {
+  dialectOptions: config.testDatabaseUrl.includes('localhost') || config.testDatabaseUrl.includes('127.0.0.1') ? {} : {
     ssl: { require: true, rejectUnauthorized: false },
   },
   logging: false, // Keep logs clean during tests
