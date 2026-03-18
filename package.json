@@ -5,13 +5,16 @@
   "type": "module",
   "main": "src/server.js",
   "scripts": {
+    "test": "node --experimental-vm-modules node_modules/jest/bin/jest.js",
+    "test:watch": "node --experimental-vm-modules node_modules/jest/bin/jest.js --watch",
+    "test:coverage": "node --experimental-vm-modules node_modules/jest/bin/jest.js --coverage",
     "dev": "nodemon src/server.js",
     "hema": "nodemon src/server.js",
     "start": "node src/server.js",
     "db:sync": "node src/db/sync.js"
   },
   "keywords": [],
-  "author": "",
+  "author": "hema",
   "license": "ISC",
   "dependencies": {
     "@google-cloud/aiplatform": "^6.5.0",
@@ -41,6 +44,7 @@
     "zod": "^3.24.0"
   },
   "devDependencies": {
+    "jest": "^30.3.0",
     "nodemon": "^3.1.0"
   }
 }
