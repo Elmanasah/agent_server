@@ -21,9 +21,9 @@ import { buildSystemPrompt } from '../config/systemPrompt.js';
 import { retrieveContext } from './rag.service.js';
 import { generateImage } from './image.service.js';
 import { searchSessions } from './sessionSearch.service.js';
-
+// add this line near your other imports
+import { UsageService, RESOURCE_TYPES } from './usage.service.js';
 // ── Vertex AI model ───────────────────────────────────────────────────────────
-
 const vertexAI = new VertexAI({
     project: config.projectId,
     location: config.location,
@@ -217,12 +217,19 @@ export class Agent {
             }
 
             case 'generate_image': {
-                const imageResult = await generateImage(args.prompt);
-                // Return structured so the controller can emit a typed SSE event
-                return {
-                    text: `Image generated for prompt: "${args.prompt}"`,
-                    image: { url: imageResult.imageUrl, prompt: args.prompt },
-                };
+                if (this.userId) {
+                  const imgUsage = await UsageService.checkAndIncrement(
+                    this.userId,
+                    RESOURCE_TYPES.IMAGE,
+                    1
+                  );
+                  if (imgUsage.is_locked) {
+                    return { text: `Account locked: ${imgUsage.lock_reason}` };
+                  }
+                  if (!imgUsage.allowed) {
+                    return { text: `Image limit reached (${imgUsage.limit}/period). Resets at ${imgUsage.reset_at}.` };
+                  }
+                }
             }
 
             case 'render_canvas': {
@@ -264,7 +271,21 @@ export class Agent {
      */
     async sendMessage(message, attachments = [], ragContext = null, onEvent = null) {
         const emit = (event) => { if (onEvent) onEvent(event); };
-
+    // ── ADD THIS BLOCK ──────────────────────────────────────────────────────
+    if (this.userId) {
+      const usage = await UsageService.checkAndIncrement(
+        this.userId,
+        RESOURCE_TYPES.API_CALL,
+        1
+      );
+      if (usage.is_locked) {
+        throw new Error(`Account locked: ${usage.lock_reason || 'Contact support.'}`);
+      }
+      if (!usage.allowed) {
+        throw new Error(`API call limit reached. Resets at ${usage.reset_at}.`);
+      }
+      emit({ type: 'usage', remaining: usage.remaining, limit: usage.limit });
+    }
         // ── Build initial user parts ───────────────────────────────────────────
         const parts = [];
 
@@ -291,7 +312,7 @@ export class Agent {
         let loopCount = 0;
         const MAX_LOOPS = 8;
 
-        while (loopCount < MAX_LOOPS) {
+        while (loopCount < MAX_LOOPS){
             loopCount++;
 
             const result = await this.chat.sendMessage(currentParts);

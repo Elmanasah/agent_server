@@ -10,7 +10,6 @@ import express from "express";
 import morgan from "morgan";
 import cookieParser from "cookie-parser";
 import passport from "passport";
-
 import cors from "./middleware/cors.js";
 import errorHandler from "./middleware/errorHandler.js";
 
@@ -22,6 +21,7 @@ import imageRouter from "./modules/image/image.routes.js";
 import tokenRouter from "./modules/token/token.routes.js";
 import authRouter from "./modules/auth/auth.routes.js";
 import userRouter from "./modules/users/user.routes.js";
+import usageRouter from "./modules/usage/usage.routes.js";   // ← ADD THIS
 import verifyToken from "./middleware/verifyToken.js";
 
 // ── App factory ───────────────────────────────────────────────────────────────
@@ -43,16 +43,17 @@ app.use("/api/v1/sessions", verifyToken, sessionsRouter);
 app.use("/api/v1/documents", verifyToken, documentsRouter);
 app.use("/api/v1/image", verifyToken, imageRouter);
 app.use("/api/v1/token", verifyToken, tokenRouter);
+app.use("/api/v1/usage",     verifyToken, usageRouter);      // ← ADD THIS
 
 // Health check
 app.get("/", (_req, res) =>
   res.json({ status: "ok", message: "AI Agent is running 🚀" }),
 );
-app.use((_req, res, next) => {
-  res.json({
-    status: "ok",
-    message:
-      "you maybe some one messing with my api or stupid frontend who didn't read the api end points",
+// 404 handler — must be AFTER all routes
+app.use((_req, res) => {
+  res.status(404).json({
+    status: 'fail',
+    message: 'Route not found',
   });
 });
 // ── Global error handler (must be last) ───────────────────────────────────────

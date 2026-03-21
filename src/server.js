@@ -13,6 +13,8 @@ import app from "./app.js";
 import config from "./config/index.js";
 import { sequelize } from "./models/index.js";
 import { attachProxy } from "./websocket/proxy.js";
+import { initUsageScheduler } from "./services/usageScheduler.js";  // ← ADD THIS
+import { runMigrations } from "./utils/runMigrations.js";          // ← ADD THIS
 
 // ── HTTP + WebSocket server ────────────────────────────────────────────────────
 const server = createServer(app);
@@ -26,7 +28,9 @@ async function start() {
     // Verify DB connection
     await sequelize.authenticate();
     console.log("✅ Database  connected to CockroachDB");
-
+    await runMigrations();    
+    initUsageScheduler();    
+    console.log("✅ Scheduler usage reset job started");  // ← add this                                   // ← ADD THIS
     // CockroachDB does not support Sequelize's multi-statement ALTER
     // uncomment this if you need to update the db collections other don't touch it please
     // await sequelize.sync({ force: false });
@@ -47,6 +51,7 @@ async function start() {
 }
 
 // ── Graceful shutdown ─────────────────────────────────────────────────────────
+
 async function shutdown(signal) {
   console.log(`\n[server] ${signal} received — shutting down gracefully`);
   server.close(async () => {

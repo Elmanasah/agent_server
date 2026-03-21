@@ -4,7 +4,6 @@
  * Loads all models, sets up associations, and exports them.
  * Import from here everywhere — do NOT import individual model files directly.
  */
-
 import sequelize from '../db/index.js';
 import UserModel from './user.model.js';
 import SessionModel from './session.model.js';
