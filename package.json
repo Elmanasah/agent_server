@@ -15,11 +15,7 @@
   "license": "ISC",
   "dependencies": {
     "@google-cloud/aiplatform": "^6.5.0",
-<<<<<<< HEAD
-    "@google-cloud/storage": "^7.0.0",
-=======
     "@google-cloud/storage": "^7.19.0",
->>>>>>> 1f6970f7628991b796eb9707992f99c404b259cb
     "@google-cloud/vertexai": "^1.10.0",
     "@google/genai": "^1.44.0",
     "@google/generative-ai": "^0.24.1",

@@ -1,3 +1,0 @@
-Recursion is a programming technique where a function calls itself until a base condition is reached.
-A base case is the condition that stops recursion.
-Recursion is commonly used in algorithms like factorial, Fibonacci, and tree traversal.
