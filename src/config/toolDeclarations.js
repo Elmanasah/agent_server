@@ -119,4 +119,77 @@ export const TOOL_DECLARATIONS = [
             required: ['json'],
         },
     },
+    {
+        name: 'get_user_profile',
+        description: 'Read the user\'s database profile including their name, email, role, and current bio. Use this to get to know who you are talking to.',
+        parameters: { type: 'object', properties: {} },
+    },
+    {
+        name: 'update_user_bio',
+        description: 'Update the user\'s bio in the database. Use this autonomously when you learn something permanent about the user (e.g., their job, age, or preferred name) to store it in their profile.',
+        parameters: {
+            type: 'object',
+            properties: {
+                bio: { type: 'string', description: 'The completely rewritten bio for the user. Do not just send the diff, send the entire updated bio.' },
+            },
+            required: ['bio'],
+        },
+    },
+    {
+        name: 'list_user_documents',
+        description: 'Get an exact SQL list of all the files the user has uploaded to their knowledge base, including file names and IDs.',
+        parameters: { type: 'object', properties: {} },
+    },
+    {
+        name: 'list_recent_sessions',
+        description: 'Get a list of the user\'s recent conversation sessions, including the session ID, title, and last active time.',
+        parameters: { type: 'object', properties: {} },
+    },
+    {
+        name: 'read_session_transcript',
+        description: 'Read the exact, verbatim message transcript of a specific past conversation session.',
+        parameters: {
+            type: 'object',
+            properties: {
+                sessionId: { type: 'string', description: 'The UUID of the session to read.' },
+            },
+            required: ['sessionId'],
+        },
+    },
+    {
+        name: 'remember_fact',
+        description: 'Save a permanent, long-term memory about the user into your Memory database. Use this instead of update_user_bio for granular facts like "User owns a Dog named Rex" or "User prefers dark mode".',
+        parameters: {
+            type: 'object',
+            properties: {
+                fact: { type: 'string', description: 'The specific fact to remember.' },
+                category: { type: 'string', description: 'General category of the fact (e.g., "preferences", "personal", "work").' },
+            },
+            required: ['fact', 'category'],
+        },
+    },
+    {
+        name: 'recall_facts',
+        description: 'Search your permanent Memory database for long-term facts you previously saved about the user.',
+        parameters: {
+            type: 'object',
+            properties: {
+                query: { type: 'string', description: 'Search term to find relevant facts.' },
+            },
+            required: ['query'],
+        },
+    },
+    {
+        name: 'manage_tasks',
+        description: 'Create, complete, or list tasks in the user\'s personal to-do list database.',
+        parameters: {
+            type: 'object',
+            properties: {
+                action: { type: 'string', description: 'Must be "list", "create", or "complete".' },
+                title: { type: 'string', description: 'The task description (required for "create").' },
+                taskId: { type: 'string', description: 'The ID of the task to complete (required for "complete").' },
+            },
+            required: ['action'],
+        },
+    },
 ];
