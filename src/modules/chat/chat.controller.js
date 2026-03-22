@@ -65,7 +65,9 @@ export async function chat(req, res, next) {
             sessionId = session.id;
         }
 
-        const cleanHistory = (session.messages || []).map(({ role, parts }) => ({ role, parts }));
+        const cleanHistory = (session.messages || [])
+            .filter(m => m.parts && m.parts.length > 0)
+            .map(({ role, parts }) => ({ role, parts }));
         const agent = getOrCreateAgent(sessionId, cleanHistory, user);
 
         // ── RAG retrieval (still useful as a pre-fetch hint, tools can also trigger it) ──
@@ -89,7 +91,7 @@ export async function chat(req, res, next) {
         );
 
         // Persist turn to DB
-        await appendTurn(sessionId, userParts, reply);
+        await appendTurn(sessionId, userParts, reply, toolResults);
 
         // Send done event
         sendEvent(res, { type: 'done', sessionId, toolResults });
