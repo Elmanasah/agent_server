@@ -17,8 +17,8 @@
  *   { type: "done",        sessionId: "..." }
  */
 
-import { createSession, getSession, appendTurn } from '../../services/session.service.js';
-import { getOrCreateAgent, evictAgent } from '../../services/agent.service.js';
+import { createSession, getSession, appendTurn } from '../sessions/session.service.js';
+import { getOrCreateAgent, evictAgent } from '../agents/agent.service.js';
 import config from '../../config/index.js';
 
 // ── SSE helper ────────────────────────────────────────────────────────────────
@@ -72,7 +72,7 @@ export async function chat(req, res, next) {
         let ragContext = null;
         if (message?.trim() && config.ragEnabled) {
             try {
-                const { retrieveContext } = await import('../../services/rag.service.js');
+                const { retrieveContext } = await import('../rag/rag.service.js');
                 ragContext = await retrieveContext(userId, message);
                 if (ragContext) console.log(`[chat] RAG pre-fetch injected (${ragContext.length} chars)`);
             } catch (ragErr) {

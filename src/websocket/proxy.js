@@ -18,7 +18,7 @@
 
 import { WebSocket } from "ws";
 import config from "../config/index.js";
-import { LiveAgentSession } from "../services/liveAgent.service.js";
+import { LiveAgentSession } from '../modules/agents/liveAgent.service.js';
 import { buildSystemPrompt } from "../config/systemPrompt.js";
 import { TOOL_DECLARATIONS } from "../config/toolDeclarations.js";
 

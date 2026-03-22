@@ -2,7 +2,7 @@
  * src/modules/token/token.controller.js
  */
 
-import { getAccessToken, getGcpConfig } from '../../services/auth.service.js';
+import { getAccessToken, getGcpConfig } from '../auth/gcp.service.js';
 
 /**
  * GET /token

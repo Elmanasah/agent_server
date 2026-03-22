@@ -15,7 +15,7 @@ import {
     saveChunk, getChunks, deleteChunks,
     saveDocumentMeta, getDocumentMeta, listDocuments as listDocumentsGCS, deleteDocumentMeta,
 } from './chunkStorage.service.js';
-import { Document } from '../models/index.js';
+import { Document } from '../../models/index.js';
 
 // ── Text chunking ─────────────────────────────────────────────────────────────
 

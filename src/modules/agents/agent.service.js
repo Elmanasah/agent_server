@@ -16,12 +16,12 @@
  */
 
 import { VertexAI } from '@google-cloud/vertexai';
-import config from '../config/index.js';
-import { buildSystemPrompt } from '../config/systemPrompt.js';
-import { TOOL_DECLARATIONS } from '../config/toolDeclarations.js';
-import { retrieveContext } from './rag.service.js';
-import { generateImage } from './image.service.js';
-import { searchSessions } from './sessionSearch.service.js';
+import config from '../../config/index.js';
+import { buildSystemPrompt } from '../../config/systemPrompt.js';
+import { TOOL_DECLARATIONS } from '../../config/toolDeclarations.js';
+import { retrieveContext } from '../rag/rag.service.js';
+import { generateImage } from '../image/image.service.js';
+import { searchSessions } from '../sessions/sessionSearch.service.js';
 
 // ── Vertex AI model ───────────────────────────────────────────────────────────
 

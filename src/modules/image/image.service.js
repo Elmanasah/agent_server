@@ -5,7 +5,7 @@
  */
 
 import { GoogleAuth } from 'google-auth-library';
-import config from '../config/index.js';
+import config from '../../config/index.js';
 
 const auth = new GoogleAuth({
     scopes: 'https://www.googleapis.com/auth/cloud-platform',

@@ -6,7 +6,7 @@
  */
 
 import { Op } from 'sequelize';
-import { User, Session, Message } from '../models/index.js';
+import { User, Session, Message } from '../../models/index.js';
 
 const MAX_RESULTS = 5;
 const SNIPPET_LEN = 300;

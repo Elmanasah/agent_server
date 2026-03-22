@@ -4,7 +4,7 @@
  * Session and Message CRUD using Sequelize → CockroachDB.
  */
 
-import { User, Session, Message } from "../models/index.js";
+import { User, Session, Message } from "../../models/index.js";
 
 // ── Internal helpers ──────────────────────────────────────────────────────────
 

@@ -6,12 +6,11 @@
  */
 
 import sequelize from "../db/index.js";
-import UserModel from "./user.model.js";
-import SessionModel from "./session.model.js";
-import MessageModel from "./message.model.js";
-import DocumentModel from "./document.model.js";
-import OTPModel from "./otp.model.js";
-import Cost from "./cost.js";
+import UserModel from "../modules/users/user.model.js";
+import SessionModel from "../modules/sessions/session.model.js";
+import MessageModel from "../modules/chat/message.model.js";
+import DocumentModel from "../modules/documents/document.model.js";
+import OTPModel from "../modules/auth/otp.model.js";
 
 // ── Associations ──────────────────────────────────────────────────────────────
 UserModel.hasMany(SessionModel, { foreignKey: "userId", as: "sessions" });

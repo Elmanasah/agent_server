@@ -6,8 +6,8 @@ import {
   ingestDocument,
   listDocuments,
   deleteDocument,
-} from "../../services/rag.service.js";
-import { model } from "../../services/agent.service.js";
+} from '../rag/rag.service.js';
+import { model } from '../agents/agent.service.js';
 import { User } from "../../models/index.js";
 
 /**

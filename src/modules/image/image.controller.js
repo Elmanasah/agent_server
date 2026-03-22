@@ -2,7 +2,7 @@
  * src/modules/image/image.controller.js
  */
 
-import { generateImage } from '../../services/image.service.js';
+import { generateImage } from '../image/image.service.js';
 
 /**
  * POST /generate-image

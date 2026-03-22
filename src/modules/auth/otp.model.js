@@ -6,7 +6,7 @@
  */
 
 import { DataTypes, Model, Op } from "sequelize";
-import sequelize from "../db/index.js";
+import sequelize from "../../db/index.js";
 
 class OTP extends Model {
     /**

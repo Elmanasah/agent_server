@@ -13,7 +13,7 @@
  */
 
 import { Storage } from '@google-cloud/storage';
-import config from '../config/index.js';
+import config from '../../config/index.js';
 
 const storage = new Storage({ projectId: config.projectId });
 const bucket = () => storage.bucket(config.gcsBucketName);

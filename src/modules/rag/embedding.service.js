@@ -4,7 +4,7 @@
 
 import { PredictionServiceClient } from "@google-cloud/aiplatform";
 import { helpers } from "@google-cloud/aiplatform";
-import config from "../config/index.js";
+import config from "../../config/index.js";
 
 const client = new PredictionServiceClient({
   apiEndpoint: `${config.location}-aiplatform.googleapis.com`,
