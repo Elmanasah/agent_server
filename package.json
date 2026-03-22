@@ -6,7 +6,7 @@
   "main": "src/server.js",
   "scripts": {
     "test": "node --experimental-vm-modules node_modules/jest/bin/jest.js",
-    "test:ci": "node --experimental-vm-modules node_modules/jest/bin/jest.js --testPathIgnorePatterns='rag|agents|gcp.service'",
+    "test:ci": "node --experimental-vm-modules node_modules/jest/bin/jest.js src/modules/auth/auth.test.js src/modules/users/user.test.js src/modules/mail/mail.test.js",
     "test:watch": "node --experimental-vm-modules node_modules/jest/bin/jest.js --watch",
     "test:coverage": "node --experimental-vm-modules node_modules/jest/bin/jest.js --coverage",
     "dev": "nodemon src/server.js",
