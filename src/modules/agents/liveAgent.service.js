@@ -108,6 +108,15 @@ async function executeTool(name, args, userId) {
             }
             return { text: `Invalid action ${args.action}` };
         }
+        case 'render_quiz': {
+            return {
+                text: `Quiz rendered: "${(args.quizData?.title || 'Quiz').slice(0, 40)}"`,
+                quiz: {
+                    json: JSON.stringify(args.quizData),
+                    title: args.quizData?.title || 'Interactive Quiz'
+                }
+            };
+        }
         case 'generate_image': {
             const img = await generateImage(args.prompt);
             return {
@@ -216,6 +225,7 @@ export class LiveAgentSession {
                                 if (output.canvas) clientPayload.tool_result.canvas = output.canvas;
                                 if (output.diagram) clientPayload.tool_result.diagram = output.diagram;
                                 if (output.math) clientPayload.tool_result.math = output.math;
+                                if (output.quiz) clientPayload.tool_result.quiz = output.quiz;
                                 if (output.image) clientPayload.tool_result.image = output.image;
                             }
                             this.clientWs.send(JSON.stringify(clientPayload));
@@ -289,6 +299,7 @@ export class LiveAgentSession {
                             if (output.canvas) clientPayload.tool_result.canvas = output.canvas;
                             if (output.diagram) clientPayload.tool_result.diagram = output.diagram;
                             if (output.math) clientPayload.tool_result.math = output.math;
+                            if (output.quiz) clientPayload.tool_result.quiz = output.quiz;
                             if (output.image) clientPayload.tool_result.image = output.image;
                         }
                         this.clientWs.send(JSON.stringify(clientPayload));

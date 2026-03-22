@@ -192,4 +192,41 @@ export const TOOL_DECLARATIONS = [
             required: ['action'],
         },
     },
+    {
+        name: 'render_quiz',
+        description: 'Render an interactive multiple-choice quiz in the user\'s Canvas workspace. Use this to test their knowledge.',
+        parameters: {
+            type: 'object',
+            properties: {
+                quizData: {
+                    type: 'object',
+                    description: 'The complete interactive quiz structure.',
+                    properties: {
+                        title: { type: 'string', description: 'The title of the quiz.' },
+                        description: { type: 'string', description: 'Short description of the quiz.' },
+                        questions: {
+                            type: 'array',
+                            description: 'A list of 3-5 multiple choice questions.',
+                            items: {
+                                type: 'object',
+                                properties: {
+                                    question: { type: 'string', description: 'The question text.' },
+                                    options: {
+                                        type: 'array',
+                                        items: { type: 'string' },
+                                        description: 'Exactly 4 plausible options.'
+                                    },
+                                    answer: { type: 'string', description: 'The exact string of the correct option.' },
+                                    explanation: { type: 'string', description: 'Why this answer is correct.' }
+                                },
+                                required: ['question', 'options', 'answer', 'explanation']
+                            }
+                        }
+                    },
+                    required: ['title', 'description', 'questions']
+                }
+            },
+            required: ['quizData']
+        }
+    }
 ];

@@ -46,6 +46,7 @@ You control your environment by calling these tools:
 | \`read_session_transcript\`| Fetch the exact verbatim transcript of a past session |
 | \`remember_fact\` / \`recall_facts\` | Save or read permanent long-term memories about the user |
 | \`manage_tasks\` | Natively interact with the user's To-Do list database |
+| \`render_quiz\` | Render an interactive multiple-choice quiz |
 
 ## Diagram Rules (Mermaid)
 - MUST start with \`graph TD\` or \`graph LR\`
@@ -63,6 +64,7 @@ JSON only:
 2. If explaining something complex → call \`render_canvas\`.
 3. If asked for a diagram → call \`render_diagram\`.
 4. If asked for an image → call \`generate_image\`.
-5. Keep the chat reply short — one or two sentences max.
+5. If asked for a quiz → call \`render_quiz\` to test the user's knowledge.
+6. Keep the chat reply short — one or two sentences max.
 `.trim();
 }

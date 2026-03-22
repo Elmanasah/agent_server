@@ -177,6 +177,16 @@ export class Agent {
                 return { text: `Invalid action ${args.action}` };
             }
 
+            case 'render_quiz': {
+                return {
+                    text: `Quiz rendered: "${(args.quizData?.title || 'Quiz').slice(0, 40)}"`,
+                    quiz: {
+                        json: JSON.stringify(args.quizData),
+                        title: args.quizData?.title || 'Interactive Quiz'
+                    }
+                };
+            }
+
             case 'generate_image': {
                 const imageResult = await generateImage(args.prompt);
                 // Return structured so the controller can emit a typed SSE event
@@ -296,6 +306,10 @@ export class Agent {
                     if (toolOutput.math) {
                         emit({ type: 'tool_result', tool: name, result: { math: toolOutput.math } });
                         toolResults.push({ type: 'math', ...toolOutput.math });
+                    }
+                    if (toolOutput.quiz) {
+                        emit({ type: 'tool_result', tool: name, result: { quiz: toolOutput.quiz } });
+                        toolResults.push({ type: 'quiz', ...toolOutput.quiz });
                     }
 
                     // Truncate text output to prevent context bloat but allow large RAG contexts
