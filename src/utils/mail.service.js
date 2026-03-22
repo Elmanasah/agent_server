@@ -15,7 +15,7 @@ const transporter = nodemailer.createTransport({
 
 class MailService {
 
-  static getHtmlTemplate(title, content, actionCode = null, actionColor = '#00a8e8') {
+  static getHtmlTemplate(title, content, actionCode = null, actionColor = '#6366F1') {
     return `
       <!DOCTYPE html>
       <html dir="rtl" lang="ar">
@@ -25,7 +25,7 @@ class MailService {
           @import url('https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700;900&display=swap');
           body {
             font-family: 'Cairo', 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            background-color: #f4f7fa;
+            background-color: #f8fafc;
             margin: 0;
             padding: 0;
             direction: rtl;
@@ -35,47 +35,49 @@ class MailService {
             max-width: 600px;
             margin: 40px auto;
             background-color: #ffffff;
-            border-radius: 16px;
+            border-radius: 24px;
             overflow: hidden;
-            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.05);
+            border: 1px solid #e2e8f0;
           }
           .header {
-            background: linear-gradient(135deg, ${actionColor}, #0077a3);
-            padding: 30px;
+            background: linear-gradient(135deg, ${actionColor}, #4338ca);
+            padding: 40px 30px;
             text-align: center;
           }
           .header h1 {
             color: white;
             margin: 0;
-            font-size: 28px;
-            font-weight: 800;
-            text-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            font-size: 32px;
+            font-weight: 900;
+            letter-spacing: -0.02em;
           }
           .content {
-            padding: 40px 30px;
+            padding: 45px 35px;
             color: #334155;
             font-size: 16px;
             line-height: 1.8;
           }
           .content h2 {
             color: #1e293b;
-            font-size: 22px;
-            margin-bottom: 20px;
-            font-weight: 700;
+            font-size: 24px;
+            margin-bottom: 24px;
+            font-weight: 800;
+            letter-spacing: -0.01em;
           }
           .code-box {
-            background-color: #f8fafc;
-            border: 2px dashed ${actionColor};
-            border-radius: 12px;
-            padding: 20px;
+            background-color: #f1f5f9;
+            border: 2px solid ${actionColor}20;
+            border-radius: 16px;
+            padding: 25px;
             text-align: center;
-            margin: 30px 0;
+            margin: 35px 0;
           }
           .code {
-            font-size: 36px;
+            font-size: 42px;
             font-weight: 900;
             color: ${actionColor};
-            letter-spacing: 8px;
+            letter-spacing: 12px;
             font-family: 'Courier New', monospace;
             display: block;
           }
@@ -83,12 +85,12 @@ class MailService {
             display: block;
             font-size: 14px;
             color: #64748b;
-            margin-bottom: 8px;
+            margin-bottom: 12px;
             font-weight: 600;
           }
           .footer {
-            background-color: #f1f5f9;
-            padding: 20px;
+            background-color: #f8fafc;
+            padding: 30px;
             text-align: center;
             font-size: 13px;
             color: #94a3b8;
@@ -103,7 +105,7 @@ class MailService {
       <body>
         <div class="container">
           <div class="header">
-            <h1>المنصة التعليمية</h1>
+            <h1>منصة Horus</h1>
           </div>
           <div class="content">
             <h2>${title}</h2>
@@ -114,13 +116,13 @@ class MailService {
                 <span class="code">${actionCode}</span>
               </div>
               <p style="margin-top: 30px; font-size: 14px; color: #64748b;">
-                صلاحية الكود 5 دقائق فقط. لو مكنتش أنت اللي طلبت، تجاهل الرسالة دي بأمان.
+                صلاحية الكود صالحة لمدة 5 دقائق فقط لضمان أمان حسابك.
               </p>
             ` : ''}
           </div>
           <div class="footer">
-            <p>&copy; ${new Date().getFullYear()} المنصة التعليمية. جميع الحقوق محفوظة.</p>
-            <p>هذه رسالة آلية، برجاء عدم الرد عليها.</p>
+            <p>&copy; ${new Date().getFullYear()} منصة Horus. جميع الحقوق محفوظة.</p>
+            <p>هذه رسالة آلية من نظام الذكاء الاصطناعي، برجاء عدم الرد.</p>
           </div>
         </div>
       </body>
@@ -133,49 +135,23 @@ class MailService {
       const html = this.getHtmlTemplate(
         'تغيير كلمة المرور',
         `<p>أهلاً بك،</p>
-         <p>لقد تلقينا طلباً لإعادة تعيين كلمة المرور الخاصة بحسابك.</p>
-         <p>استخدم الكود التالي لإكمال العملية:</p>`,
+         <p>لقد تلقينا طلباً لإعادة تعيين كلمة المرور الخاصة بحسابك في Horus.</p>
+         <p>استخدم الكود التالي لإكمال العملية بأمان:</p>`,
         otp,
-        '#FF9800' // Orange for security actions
+        '#F59E0B' // Warning Amber
       );
 
       const info = await transporter.sendMail({
-        from: `"فريق المنصة" <${process.env.EMAIL_USER}>`,
+        from: `"فريق Horus" <${process.env.EMAIL_USER}>`,
         to: email,
-        subject: '🔐 كود تغيير كلمة المرور',
-        text: `الكود الخاص بك هو: ${otp}`,
+        subject: '🔐 كود استعادة كلمة المرور',
+        text: `كود التحقق الخاص بك هو: ${otp}`,
         html: html,
       });
 
       return info;
     } catch (error) {
-      console.error('Error sending email: ', error);
-      throw new Error('Failed to send OTP email');
-    }
-  }
-
-  static async verifyParent(email, otp) {
-    try {
-      const html = this.getHtmlTemplate(
-        'ربط حساب ولي الأمر',
-        `<p>السيد ولي الأمر،</p>
-         <p>يرغب ابنك/ابنتك في ربط حسابهم بحسابك لمتابعة مستواهم الدراسي.</p>
-         <p>من فضلك أعطهم هذا الكود للموافقة:</p>`,
-        otp,
-        '#4CAF50' // Green for approval
-      );
-
-      const info = await transporter.sendMail({
-        from: `"فريق المنصة" <${process.env.EMAIL_USER}>`,
-        to: email,
-        subject: '👨‍👩‍👧‍👦 كود ربط ولي الأمر',
-        text: `كود ولي الأمر: ${otp}`,
-        html: html,
-      });
-
-      return info;
-    } catch (error) {
-      console.error('Error sending email: ', error);
+      console.error('Error sending OTP email: ', error);
       throw new Error('Failed to send OTP email');
     }
   }
@@ -184,16 +160,16 @@ class MailService {
     try {
       const html = this.getHtmlTemplate(
         'تأكيد البريد الإلكتروني',
-        `<p>مرحباً بك معنا! 👋</p>
-         <p>نحن سعداء بانضمامك إلينا. لتفعيل حسابك والبدء في رحلة التعلم، يرجى استخدام الكود التالي:</p>`,
+        `<p>مرحباً بك في عالم Horus! 👋</p>
+         <p>يسعدنا انضمامك إلينا في رحلتك التعليمية. يرجى استخدام الكود التالي لتفعيل حسابك والبدء فوراً:</p>`,
         otp,
-        '#00a8e8' // Brand Blue
+        '#6366F1' // Indigo
       );
 
       const info = await transporter.sendMail({
-        from: `"فريق المنصة" <${process.env.EMAIL_USER}>`,
+        from: `"فريق Horus" <${process.env.EMAIL_USER}>`,
         to: email,
-        subject: '✨ تأكيد حسابك الجديد',
+        subject: '✨ مرحباً بك في Horus - تأكيد الحساب',
         text: `كود التفعيل: ${otp}`,
         html: html,
       });
@@ -204,168 +180,74 @@ class MailService {
     }
   }
 
-  static async sendWithdrawalStatus(email, status, amount, note) {
-    try {
-      const isApproved = status === 'approved';
-      const statusText = isApproved ? 'تمت الموافقة بنجاح' : 'تم رفض الطلب';
-      const color = isApproved ? '#4CAF50' : '#F44336';
-      
-      const content = `
-        <p>بخصوص طلب سحب المبلغ: <strong>${amount} جنيه</strong></p>
-        <p>نود إبلاغك أنه <span style="color:${color}; font-weight:bold;">${statusText}</span>.</p>
-        ${note ? `<div style="background:#f1f5f9; padding:15px; border-radius:8px; margin-top:15px;"><strong>ملاحظة:</strong> ${note}</div>` : ''}
-      `;
-
-      const html = this.getHtmlTemplate(
-        'تحديث حالة طلب السحب',
-        content,
-        null,
-        color
-      );
-
-      await transporter.sendMail({
-        from: `"فريق المنصة" <${process.env.EMAIL_USER}>`,  
-        to: email,
-        subject: isApproved ? '💰 تم قبول سحب الرصيد' : '❌ تحديث بخصوص طلب السحب',
-        html: html,
-      });
-    } catch (error) {
-      console.error('Error sending withdrawal email: ', error);
-    }
-  }
-
-  static async sendChildPurchaseNotification(email, childName, itemName, price) {
-    try {
-      const content = `
-        <p>قام ابنك <strong class="highlight">${childName}</strong> بشراء محتوى تعليمي جديد:</p>
-        <div style="background:#f0f9ff; border:1px solid #bae6fd; border-radius:10px; padding:15px; margin:20px 0;">
-          <h3 style="margin:0 0 10px 0; color:#0369a1;">${itemName}</h3>
-          <p style="margin:0; font-size:18px;">القيمة: <strong>${price} جنيه</strong></p>
-        </div>
-        <p>تم خصم المبلغ من المحفظة بنجاح.</p>
-      `;
-
-      const html = this.getHtmlTemplate(
-        'إشعار شراء جديد',
-        content,
-        null,
-        '#2196F3'
-      );
-
-      await transporter.sendMail({
-        from: `"فريق المنصة" <${process.env.EMAIL_USER}>`,
-        to: email,
-        subject: '📚 عملية شراء جديدة',
-        html: html,
-      });
-    } catch (error) {
-      console.error('Error sending parent notification: ', error);
-    }
-  }
-
   static async sendNewExamNotification(emails, examTitle, type) {
     if (!emails || emails.length === 0) return;
 
     try {
       const content = `
-        <p>استعد للتحدي! 💪</p>
-        <p>تم إضافة <strong>${type}</strong> جديد على المنصة:</p>
-        <div style="background:#fff7ed; border:1px solid #ffedd5; border-radius:10px; padding:20px; text-align:center; transform:rotate(-1deg); margin:20px 0; box-shadow:0 2px 4px rgba(0,0,0,0.05);">
-          <h2 style="margin:0; color:#ea580c; font-size:24px;">${examTitle}</h2>
+        <p>حان وقت التحدي! 💪</p>
+        <p>تم إضافة <strong>${type}</strong> ذكي جديد على منصة Horus:</p>
+        <div style="background:#eef2ff; border:1px solid #e0e7ff; border-radius:16px; padding:25px; text-align:center; margin:25px 0;">
+          <h2 style="margin:0; color:#4338ca; font-size:26px;">${examTitle}</h2>
         </div>
-        <p>ادخل دلوقتي واختبر مستواك!</p>
-        <div style="text-align:center; margin-top:25px;">
-          <a href="${process.env.CLIENT_URL || '#'}" style="background:#ea580c; color:white; text-decoration:none; padding:12px 25px; border-radius:30px; font-weight:bold; display:inline-block; box-shadow:0 4px 10px rgba(234, 88, 12, 0.3);">الذهاب للمنصة</a>
+        <p>ادخل الآن واختبر مهاراتك مع Horus!</p>
+        <div style="text-align:center; margin-top:30px;">
+          <a href="${process.env.CLIENT_URL || '#'}" style="background:#6366F1; color:white; text-decoration:none; padding:15px 35px; border-radius:12px; font-weight:bold; display:inline-block; box-shadow: 0 4px 15px rgba(99, 102, 241, 0.3);">ابدأ الاختبار الآن</a>
         </div>
       `;
 
       const html = this.getHtmlTemplate(
-        'تنبيه امتحان جديد',
+        'تنبيه اختبار جديد',
         content,
         null,
-        '#ea580c'
+        '#6366F1'
       );
 
       await transporter.sendMail({
-        from: `"تنبيهات الامتحانات" <${process.env.EMAIL_USER}>`,
+        from: `"تنبيهات Horus" <${process.env.EMAIL_USER}>`,
         bcc: emails,
-        subject: `📝 امتحان جديد: ${examTitle}`,
+        subject: `📝 اختبار جديد بانتظارك: ${examTitle}`,
         html: html,
       });
     } catch (error) {
       console.error('Error sending exam notification: ', error);
     }
   }
+
   static async sendRechargeReceipt(email, name, amount, balance, transactionId) {
     try {
       const content = `
         <p>مرحباً <strong>${name}</strong>،</p>
-        <p>تم شحن محفظتك بنجاح! 🎉</p>
+        <p>تم شحن محفظتك الرقمية بنجاح! 🎉</p>
         
-        <div style="background:#f0fdf4; border:1px solid #bbf7d0; border-radius:12px; padding:20px; margin:20px 0; text-align:center;">
-          <p style="margin:0; text-transform:uppercase; font-size:12px; color:#15803d; letter-spacing:1px;">قيمة الشحن</p>
-          <h2 style="margin:5px 0 15px 0; color:#166534; font-size:32px;">${amount} EGP</h2>
+        <div style="background:#f0fdf4; border:1px solid #bbf7d0; border-radius:16px; padding:25px; margin:25px 0; text-align:center;">
+          <p style="margin:0; text-transform:uppercase; font-size:12px; color:#15803d; letter-spacing:2px; font-weight:700;">قيمة الشحن</p>
+          <h2 style="margin:10px 0 20px 0; color:#166534; font-size:36px;">${amount} EGP</h2>
           
-          <div style="border-top:1px dashed #bbf7d0; padding-top:15px; display:flex; justify-content:space-between; font-size:14px; color:#166534;">
-            <span>رصيدك الحالي:</span>
+          <div style="border-top:1px dashed #bbf7d0; padding-top:20px; display:flex; justify-content:space-between; font-size:15px; color:#166534;">
+            <span>الرصيد الكلي:</span>
             <strong>${balance} EGP</strong>
           </div>
         </div>
 
-        <p style="font-size:12px; color:#64748b; text-align:center;">رقم العملية: #${transactionId}</p>
+        <p style="font-size:12px; color:#94a3b8; text-align:center;">مرجع العملية: #${transactionId}</p>
       `;
 
       const html = this.getHtmlTemplate(
         'إيصال شحن رصيد',
         content,
         null,
-        '#22c55e' // Green
+        '#10B981' // Success Emerald
       );
 
       await transporter.sendMail({
-        from: `"المنصة التعليمية" <${process.env.EMAIL_USER}>`,
+        from: `"منصة Horus" <${process.env.EMAIL_USER}>`,
         to: email,
-        subject: '✅ تم شحن رصيدك بنجاح',
+        subject: '✅ تم تأكيد شحن رصيدك',
         html: html,
       });
     } catch (error) {
       console.error('Error sending recharge receipt: ', error);
-      // Don't throw error to avoid failing the transaction response
-    }
-  }
-
-  static async sendTeacherAssignmentNotification(email, studentName, courseName, teacherName) {
-    try {
-      const content = `
-        <p>مرحباً <strong>${studentName}</strong>،</p>
-        <p>لقد قام الأستاذ <strong class="highlight">${teacherName}</strong> بفتح كورس جديد لك! 🎓</p>
-        
-        <div style="background:#f0f9ff; border:1px solid #bae6fd; border-radius:12px; padding:20px; margin:20px 0; text-align:center;">
-          <h3 style="margin:0 0 10px 0; color:#0369a1;">${courseName}</h3>
-        </div>
-        
-        <p>يمكنك الآن الدخول للكورس والبدء في الدراسة مباشرة!</p>
-        <div style="text-align:center; margin-top:25px;">
-          <a href="${process.env.CLIENT_URL || '#'}/my-courses" style="background:#0369a1; color:white; text-decoration:none; padding:12px 25px; border-radius:30px; font-weight:bold; display:inline-block; box-shadow:0 4px 10px rgba(3, 105, 161, 0.3);">الذهاب للكورسات</a>
-        </div>
-      `;
-
-      const html = this.getHtmlTemplate(
-        'تم فتح كورس جديد لك',
-        content,
-        null,
-        '#0369a1'
-      );
-
-      await transporter.sendMail({
-        from: `"المنصة التعليمية" <${process.env.EMAIL_USER}>`,
-        to: email,
-        subject: '🎁 كورس جديد',
-        html: html,
-      });
-    } catch (error) {
-      console.error('Error sending teacher assignment notification: ', error);
-      // Don't throw error to avoid failing the assignment
     }
   }
 }
