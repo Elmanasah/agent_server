@@ -44,11 +44,18 @@ jobs:
         run: npm ci
 
       - name: Run tests
-        run: npm test
+        run: npm run test:ci
         env:
           NODE_ENV: test
           TEST_DATABASE_URL: postgres://testuser:testpassword@localhost:5432/testdb
           SECRET_KEY: testsecret
+          GOOGLE_CLOUD_PROJECT: dummy-project-id
+          GOOGLE_CLOUD_LOCATION: us-central1
+          GCS_BUCKET_NAME: dummy-bucket
+          VECTOR_SEARCH_INDEX_ID: dummy-123
+          VECTOR_SEARCH_ENDPOINT_ID: dummy-123
+          EMAIL_USER: dummy@example.com
+          EMAIL_PASS: dummy
 
   build-and-push-image:
     needs: test
