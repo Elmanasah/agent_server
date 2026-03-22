@@ -39,7 +39,7 @@ jobs:
               run: npm ci
 
             - name: Run tests
-              run: npm test
+              run: npm run test:ci
               env:
                   NODE_ENV: test
                   TEST_DATABASE_URL: postgres://testuser:testpassword@localhost:5432/testdb
