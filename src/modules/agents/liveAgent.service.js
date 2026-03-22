@@ -24,7 +24,7 @@ import { buildSystemPrompt } from '../../config/systemPrompt.js';
 import { retrieveContext } from '../rag/rag.service.js';
 import { generateImage } from '../image/image.service.js';
 import { searchSessions } from '../sessions/sessionSearch.service.js';
-import { User } from '../../models/index.js';
+import { User, Document, Session, Message, Memory, Task } from '../../models/index.js';
 
 // ── Tool executor (returns structured results like agent.service.js) ──────────
 
@@ -41,6 +41,81 @@ async function executeTool(name, args, userId) {
             if (!userId) return { text: 'No user context for session search.' };
             const result = await searchSessions(userId, args.query).catch(() => null);
             return { text: result || 'No relevant past conversations found.' };
+        }
+        case 'get_user_profile': {
+            if (!userId) return { text: 'No user context available.' };
+            const u = await User.findByPk(userId);
+            return { text: u ? JSON.stringify(u.toSafeJSON()) : 'User not found.' };
+        }
+        case 'update_user_bio': {
+            if (!userId) return { text: 'No user context available.' };
+            await User.update({ bio: args.bio }, { where: { id: userId } });
+            return { text: `Successfully updated bio to: ${args.bio}` };
+        }
+        case 'list_user_documents': {
+            if (!userId) return { text: 'No user context.' };
+            const docs = await Document.findAll({ where: { userId: userId }, order: [['createdAt', 'DESC']] });
+            return { text: docs.length ? JSON.stringify(docs.map(d => ({ id: d.id, fileName: d.fileName, mimeType: d.mimeType, createdAt: d.createdAt }))) : 'No documents found.' };
+        }
+        case 'list_recent_sessions': {
+            if (!userId) return { text: 'No user context.' };
+            const sessions = await Session.findAll({ where: { userId: userId }, order: [['updatedAt', 'DESC']], limit: 15 });
+            return { text: sessions.length ? JSON.stringify(sessions.map(s => ({ id: s.id, title: s.title, updatedAt: s.updatedAt }))) : 'No recent sessions.' };
+        }
+        case 'read_session_transcript': {
+            if (!userId) return { text: 'No user context.' };
+            const sessionObj = await Session.findOne({ where: { id: args.sessionId, userId: userId }});
+            if (!sessionObj) return { text: 'Session not found or access denied.' };
+            const messages = await Message.findAll({ where: { sessionId: args.sessionId }, order: [['createdAt', 'ASC']] });
+            if (!messages.length) return { text: 'No messages found for this session.' };
+            const transcript = messages.map(m => `[${m.role.toUpperCase()}]: ${m.content}`).join('\n\n');
+            return { text: transcript };
+        }
+        case 'remember_fact': {
+            if (!userId) return { text: 'No user context.' };
+            await Memory.create({ userId: userId, fact: args.fact, category: args.category });
+            return { text: `Successfully saved fact to long-term memory.` };
+        }
+        case 'recall_facts': {
+            if (!userId) return { text: 'No user context.' };
+            const { Op } = await import('sequelize');
+            const memories = await Memory.findAll({ 
+                where: { 
+                    userId: userId,
+                    fact: { [Op.iLike]: `%${args.query}%` }
+                },
+                order: [['createdAt', 'DESC']],
+                limit: 20
+            });
+            return { text: memories.length ? JSON.stringify(memories.map(m => `[${m.category}] ${m.fact}`)) : 'No facts matching this query.' };
+        }
+        case 'manage_tasks': {
+            if (!userId) return { text: 'No user context.' };
+            if (args.action === 'create') {
+                if (!args.title) return { text: 'Missing task title.' };
+                const t = await Task.create({ userId: userId, title: args.title });
+                return { text: `Task created with ID: ${t.id}` };
+            } else if (args.action === 'list') {
+                const tasks = await Task.findAll({ where: { userId: userId, status: 'pending' }, order: [['createdAt', 'DESC']] });
+                return { text: tasks.length ? JSON.stringify(tasks.map(t => ({ id: t.id, title: t.title, status: t.status }))) : 'No pending tasks.' };
+            } else if (args.action === 'complete') {
+                if (!args.taskId) return { text: 'Missing taskId.' };
+                const t = await Task.findOne({ where: { id: args.taskId, userId: userId } });
+                if (!t) return { text: 'Task not found.' };
+                t.status = 'completed';
+                await t.save();
+                return { text: `Task ${args.taskId} marked as complete.` };
+            }
+            return { text: `Invalid action ${args.action}` };
+        }
+        case 'render_quiz': {
+            return {
+                text: `Quiz rendered: "${(args.quizData?.title || 'Quiz').slice(0, 40)}"`,
+                quiz: {
+                    json: JSON.stringify(args.quizData),
+                    title: args.quizData?.title || 'Interactive Quiz'
+                }
+            };
         }
         case 'generate_image': {
             const img = await generateImage(args.prompt);
@@ -129,43 +204,49 @@ export class LiveAgentSession {
         if (toolCallMsg?.functionCalls?.length > 0) {
             console.log(`[liveAgent] Got BidiGenerateContentToolCall with ${toolCallMsg.functionCalls.length} call(s)`);
 
-            const functionResponses = [];
+            const functionResponses = await Promise.all(
+                toolCallMsg.functionCalls.map(async (fc) => {
+                    const { name, args, id } = fc;
 
-            for (const fc of toolCallMsg.functionCalls) {
-                const { name, args, id } = fc;
+                    try {
+                        const output = await executeTool(name, args, this.userId);
 
-                try {
-                    const output = await executeTool(name, args, this.userId);
-
-                    // Build function response for GCP
-                    const gcpText = typeof output === 'object' ? (output.text || 'Done') : String(output);
-                    functionResponses.push({
-                        name,
-                        id,
-                        response: { output: gcpText },
-                    });
-
-                    // Send rich tool_result to browser client for Canvas/UI updates
-                    if (this.clientWs.readyState === 1) {
-                        const clientPayload = { tool_result: { name } };
-                        if (typeof output === 'object') {
-                            if (output.canvas) clientPayload.tool_result.canvas = output.canvas;
-                            if (output.diagram) clientPayload.tool_result.diagram = output.diagram;
-                            if (output.math) clientPayload.tool_result.math = output.math;
-                            if (output.image) clientPayload.tool_result.image = output.image;
+                        // Build function response for GCP
+                        let gcpText = typeof output === 'object' ? (output.text || 'Done') : String(output);
+                        const MAX_OUTPUT_LENGTH = 5000;
+                        if (gcpText.length > MAX_OUTPUT_LENGTH) {
+                            gcpText = gcpText.substring(0, MAX_OUTPUT_LENGTH) + '... [Truncated to save context window]';
                         }
-                        this.clientWs.send(JSON.stringify(clientPayload));
-                    }
 
-                } catch (err) {
-                    console.error(`[liveAgent] Tool error (${name}):`, err.message);
-                    functionResponses.push({
-                        name,
-                        id,
-                        response: { error: err.message },
-                    });
-                }
-            }
+                        // Send rich tool_result to browser client for Canvas/UI updates
+                        if (this.clientWs.readyState === 1) {
+                            const clientPayload = { tool_result: { name } };
+                            if (typeof output === 'object') {
+                                if (output.canvas) clientPayload.tool_result.canvas = output.canvas;
+                                if (output.diagram) clientPayload.tool_result.diagram = output.diagram;
+                                if (output.math) clientPayload.tool_result.math = output.math;
+                                if (output.quiz) clientPayload.tool_result.quiz = output.quiz;
+                                if (output.image) clientPayload.tool_result.image = output.image;
+                            }
+                            this.clientWs.send(JSON.stringify(clientPayload));
+                        }
+
+                        return {
+                            name,
+                            id,
+                            response: { output: gcpText },
+                        };
+
+                    } catch (err) {
+                        console.error(`[liveAgent] Tool error (${name}):`, err.message);
+                        return {
+                            name,
+                            id,
+                            response: { error: err.message },
+                        };
+                    }
+                })
+            );
 
             // Send BidiGenerateContentToolResponse back to GCP
             if (gcpWs && gcpWs.readyState === 1) {
@@ -187,51 +268,58 @@ export class LiveAgentSession {
 
         console.log(`[liveAgent] Got ${functionCalls.length} inline function call(s)`);
 
-        for (const part of functionCalls) {
-            const { name, args } = part.functionCall;
+        await Promise.all(
+            functionCalls.map(async (part) => {
+                const { name, args } = part.functionCall;
 
-            try {
-                const output = await executeTool(name, args, this.userId);
-                const gcpText = typeof output === 'object' ? (output.text || 'Done') : String(output);
-
-                // Send tool_response back to GCP (inline format)
-                if (gcpWs && gcpWs.readyState === 1) {
-                    gcpWs.send(JSON.stringify({
-                        tool_response: {
-                            function_responses: [{
-                                name,
-                                response: { output: gcpText },
-                            }],
-                        },
-                    }));
-                }
-
-                // Forward rich tool_result to browser client
-                if (this.clientWs.readyState === 1) {
-                    const clientPayload = { tool_result: { name } };
-                    if (typeof output === 'object') {
-                        if (output.canvas) clientPayload.tool_result.canvas = output.canvas;
-                        if (output.diagram) clientPayload.tool_result.diagram = output.diagram;
-                        if (output.math) clientPayload.tool_result.math = output.math;
-                        if (output.image) clientPayload.tool_result.image = output.image;
+                try {
+                    const output = await executeTool(name, args, this.userId);
+                    let gcpText = typeof output === 'object' ? (output.text || 'Done') : String(output);
+                    const MAX_OUTPUT_LENGTH = 2000;
+                    if (gcpText.length > MAX_OUTPUT_LENGTH) {
+                        gcpText = gcpText.substring(0, MAX_OUTPUT_LENGTH) + '... [Truncated to save context window]';
                     }
-                    this.clientWs.send(JSON.stringify(clientPayload));
-                }
 
-            } catch (err) {
-                console.error(`[liveAgent] Tool error (${name}):`, err.message);
-                if (gcpWs && gcpWs.readyState === 1) {
-                    gcpWs.send(JSON.stringify({
-                        tool_response: {
-                            function_responses: [{
-                                name,
-                                response: { error: err.message },
-                            }],
-                        },
-                    }));
+                    // Send tool_response back to GCP (inline format)
+                    if (gcpWs && gcpWs.readyState === 1) {
+                        gcpWs.send(JSON.stringify({
+                            tool_response: {
+                                function_responses: [{
+                                    name,
+                                    response: { output: gcpText },
+                                }],
+                            },
+                        }));
+                    }
+
+                    // Forward rich tool_result to browser client
+                    if (this.clientWs.readyState === 1) {
+                        const clientPayload = { tool_result: { name } };
+                        if (typeof output === 'object') {
+                            if (output.canvas) clientPayload.tool_result.canvas = output.canvas;
+                            if (output.diagram) clientPayload.tool_result.diagram = output.diagram;
+                            if (output.math) clientPayload.tool_result.math = output.math;
+                            if (output.quiz) clientPayload.tool_result.quiz = output.quiz;
+                            if (output.image) clientPayload.tool_result.image = output.image;
+                        }
+                        this.clientWs.send(JSON.stringify(clientPayload));
+                    }
+
+                } catch (err) {
+                    console.error(`[liveAgent] Tool error (${name}):`, err.message);
+                    if (gcpWs && gcpWs.readyState === 1) {
+                        gcpWs.send(JSON.stringify({
+                            tool_response: {
+                                function_responses: [{
+                                    name,
+                                    response: { error: err.message },
+                                }],
+                            },
+                        }));
+                    }
                 }
-            }
-        }
+            })
+        );
 
         return true;
     }

@@ -171,18 +171,43 @@ export async function retrieveContext(userId, queryText) {
  * @param {string} docId
  */
 export async function deleteDocument(userId, docId) {
-    const meta = await getDocumentMeta(userId, docId);
-    if (!meta) throw new Error(`Document ${docId} not found`);
+    let chunkIds = [];
+    let fileName = 'Unknown';
 
-    await removeDatapoints(meta.chunkIds);
-    await deleteChunks(userId, meta.chunkIds);
-    await deleteDocumentMeta(userId, docId);
+    // 1. Try to get metadata from DB first
+    const dbDoc = await Document.findOne({ where: { id: docId, userId } });
+    if (dbDoc) {
+        chunkIds = dbDoc.chunkIds || [];
+        fileName = dbDoc.fileName;
+    }
 
-    // Remove from DB (ignore if not found — some docs may pre-date DB)
-    await Document.destroy({ where: { id: docId } }).catch(() => { });
+    // 2. Fallback to GCS metadata if not in DB
+    const meta = await getDocumentMeta(userId, docId).catch(() => null);
+    if (meta) {
+        if (!chunkIds.length) chunkIds = meta.chunkIds || [];
+        if (fileName === 'Unknown') fileName = meta.fileName;
+    }
 
-    console.log(`[rag] Deleted "${meta.fileName}" (${meta.chunkIds.length} chunks removed)`);
-    return { fileName: meta.fileName, chunksRemoved: meta.chunkIds.length };
+    if (!chunkIds.length && !meta && !dbDoc) {
+        throw new Error(`Document ${docId} not found in DB or storage`);
+    }
+
+    // 3. Cascade Delete: Vectors, Chunks, Meta, DB
+    if (chunkIds.length > 0) {
+        await removeDatapoints(chunkIds).catch(err => console.warn('[rag] Vector deletion failed:', err.message));
+        await deleteChunks(userId, chunkIds).catch(err => console.warn('[rag] Chunk deletion failed:', err.message));
+    }
+    
+    if (meta) {
+        await deleteDocumentMeta(userId, docId).catch(() => {});
+    }
+
+    if (dbDoc) {
+        await dbDoc.destroy().catch(() => {});
+    }
+
+    console.log(`[rag] Deleted "${fileName}" (${chunkIds.length} chunks removed)`);
+    return { fileName, chunksRemoved: chunkIds.length };
 }
 
 /**

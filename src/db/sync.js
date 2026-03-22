@@ -8,7 +8,7 @@
  */
 
 import '../config/index.js';
-import { sequelize, User, Session, Message, Document, OTP } from '../models/index.js';
+import { sequelize, User, Session, Message, Document, OTP, Memory, Task } from '../models/index.js';
 
 const force = process.env.FORCE === 'true';
 
@@ -40,6 +40,12 @@ try {
 
     await OTP.sync({ force });
     console.log('   ✓ otps');
+
+    await Memory.sync({ force });
+    console.log('   ✓ memories');
+
+    await Task.sync({ force });
+    console.log('   ✓ tasks');
 
     // Verify
     const [tables] = await sequelize.query(

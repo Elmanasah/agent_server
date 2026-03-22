@@ -25,12 +25,26 @@ import { TOOL_DECLARATIONS } from "../config/toolDeclarations.js";
 const DEFAULT_SERVICE_URL = `wss://${config.gcpApiHost}/ws/google.cloud.aiplatform.v1beta1.LlmBidiService/BidiGenerateContent`;
 
 export function attachProxy(wss) {
-  wss.on("connection", (clientWs) => {
+  wss.on("connection", (clientWs, req) => {
     const session = new LiveAgentSession(clientWs);
     let gcpWs = null;
     let isAuthenticated = false;
+    let isAuthenticating = false;
     let gcpReady = false;
     const pendingMessages = [];
+
+    // Extract HttpOnly JWT cookie from the WebSocket upgrade headers
+    let cookieJwt = null;
+    if (req && req.headers && req.headers.cookie) {
+      const cookies = req.headers.cookie.split(';');
+      for (const c of cookies) {
+        const [name, val] = c.split('=').map(str => str.trim());
+        if (name === 'jwt') {
+          cookieJwt = val;
+          break;
+        }
+      }
+    }
 
     // Kick unauthenticated clients after 10 s
     const authTimeout = setTimeout(() => {
@@ -41,9 +55,23 @@ export function attachProxy(wss) {
       const raw = rawData.toString();
 
       // ── Step 1: Authenticate via JWT ──────────────────────────────────
+      if (isAuthenticating) {
+        // Queue fast follow-up messages while the GCP OAuth is resolving
+        pendingMessages.push(raw);
+        return;
+      }
+
       if (!isAuthenticated) {
+        isAuthenticating = true;
         try {
           const authData = JSON.parse(raw);
+          
+          // Inject the secure HttpOnly cookie JWT into the authData 
+          // (browser JS cannot read it to send it explicitly)
+          if (cookieJwt && !authData.jwt_token) {
+            authData.jwt_token = cookieJwt;
+          }
+
           // Support both JWT auth (new) and legacy bearer_token (fallback)
           let authResult;
           if (authData.jwt_token) {
@@ -66,6 +94,7 @@ export function attachProxy(wss) {
 
           clearTimeout(authTimeout);
           isAuthenticated = true;
+          isAuthenticating = false;
 
           const serviceUrl =
             authResult.serviceUrl ||
@@ -136,6 +165,7 @@ export function attachProxy(wss) {
           });
         } catch (err) {
           console.error("[proxy] Auth error:", err.message);
+          isAuthenticating = false;
           clientWs.close(1008, `Auth failed: ${err.message}`);
         }
         return;
