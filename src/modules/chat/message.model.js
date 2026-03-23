@@ -21,6 +21,15 @@ Message.init({
         type: DataTypes.JSONB,       // Vertex AI parts array
         allowNull: false,
     },
+    type: {
+        type: DataTypes.STRING(20),  // "text" | "image" | "canvas" | "diagram" | "math" | "quiz"
+        defaultValue: "text",
+        allowNull: false,
+    },
+    content: {
+        type: DataTypes.JSONB,       // Tool-specific data (e.g. { url, prompt })
+        allowNull: true,
+    },
     sessionId: {
         type: DataTypes.UUID,
         allowNull: false,

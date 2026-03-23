@@ -26,25 +26,25 @@ try {
     console.log('🔄 Syncing models...');
 
     // Sync each model in FK-dependency order
-    await User.sync({ force });
+    await User.sync({ force, alter: true });
     console.log('   ✓ users');
 
-    await Session.sync({ force });
+    await Session.sync({ force, alter: true });
     console.log('   ✓ sessions');
 
-    await Message.sync({ force });
+    await Message.sync({ force, alter: true });
     console.log('   ✓ messages');
 
-    await Document.sync({ force });
+    await Document.sync({ force, alter: true });
     console.log('   ✓ documents');
 
-    await OTP.sync({ force });
+    await OTP.sync({ force, alter: true });
     console.log('   ✓ otps');
 
-    await Memory.sync({ force });
+    await Memory.sync({ force, alter: true });
     console.log('   ✓ memories');
 
-    await Task.sync({ force });
+    await Task.sync({ force, alter: true });
     console.log('   ✓ tasks');
 
     // Verify

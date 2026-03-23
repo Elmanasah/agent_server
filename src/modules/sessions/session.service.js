@@ -60,21 +60,41 @@ export async function getSession(id, sessionId) {
 }
 
 /**
- * Append a user turn + model reply to a session.
+ * Append a user turn + model reply + tool results to a session.
  * @param {string}   sessionId
  * @param {object[]} userParts
  * @param {string}   modelReply
+ * @param {object[]} toolResults
  */
-export async function appendTurn(sessionId, userParts, modelReply) {
-  // Store only text parts — skip base64 blobs
+export async function appendTurn(sessionId, userParts, modelReply, toolResults = []) {
+  // 1. Save user message
   const textOnlyParts = userParts.filter((p) => p.text);
+  if (textOnlyParts.length > 0) {
+    await Message.create({ sessionId, role: "user", parts: textOnlyParts, type: "text" });
+  }
 
-  await Message.create({ sessionId, role: "user", parts: textOnlyParts });
-  await Message.create({
-    sessionId,
-    role: "model",
-    parts: [{ text: modelReply }],
-  });
+  // 2. Save model text reply
+  if (modelReply) {
+    await Message.create({
+      sessionId,
+      role: "model",
+      parts: [{ text: modelReply }],
+      type: "text",
+    });
+  }
+
+  // 3. Save each tool result as a separate rich message
+  for (const result of toolResults) {
+    // result is e.g. { type: 'image', url: '...', prompt: '...' }
+    const { type, ...data } = result;
+    await Message.create({
+      sessionId,
+      role: "model",
+      parts: [], // Not needed for rich types, but model requires it in schema if allowNull: false
+      type: type,
+      content: data,
+    });
+  }
 
   await Session.update({ updatedAt: new Date() }, { where: { id: sessionId } });
 }
