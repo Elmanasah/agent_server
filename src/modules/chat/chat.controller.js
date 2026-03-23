@@ -65,9 +65,27 @@ export async function chat(req, res, next) {
             sessionId = session.id;
         }
 
-        const cleanHistory = (session.messages || [])
+        // ── Formatted History for Vertex AI ───────────────────────────────────
+        // Vertex AI REQUIRES history to start with 'user' and alternate 'user' -> 'model'.
+        const rawHistory = (session.messages || [])
             .filter(m => m.parts && m.parts.length > 0)
-            .map(({ role, parts }) => ({ role, parts }));
+            .map(({ role, parts }) => ({ role: role === 'model' ? 'model' : 'user', parts }));
+
+        const cleanHistory = [];
+        for (const msg of rawHistory) {
+            if (cleanHistory.length === 0) {
+                if (msg.role === 'user') cleanHistory.push(msg);
+                continue;
+            }
+            const lastRole = cleanHistory[cleanHistory.length - 1].role;
+            if (msg.role !== lastRole) {
+                cleanHistory.push(msg);
+            } else {
+                // Merge consecutive same-role messages (defensive)
+                cleanHistory[cleanHistory.length - 1].parts.push(...msg.parts);
+            }
+        }
+
         const agent = getOrCreateAgent(sessionId, cleanHistory, user);
 
         // ── RAG retrieval (still useful as a pre-fetch hint, tools can also trigger it) ──

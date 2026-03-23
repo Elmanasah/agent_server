@@ -67,32 +67,47 @@ export async function getSession(id, sessionId) {
  * @param {object[]} toolResults
  */
 export async function appendTurn(sessionId, userParts, modelReply, toolResults = []) {
-  // 1. Save user message
-  const textOnlyParts = userParts.filter((p) => p.text);
-  if (textOnlyParts.length > 0) {
-    await Message.create({ sessionId, role: "user", parts: textOnlyParts, type: "text" });
-  }
-
-  // 2. Save model text reply
-  if (modelReply) {
+  // 1. Save user message (including attachments/inlineData)
+  if (userParts.length > 0) {
     await Message.create({
       sessionId,
-      role: "model",
-      parts: [{ text: modelReply }],
-      type: "text",
+      role: "user",
+      parts: userParts,
+      type: "text"
     });
   }
 
-  // 3. Save each tool result as a separate rich message
+  // 2. Save model turn (text reply + tool results) as a SINGLE role: model message
+  // This ensures role alternation (user/model/user/model) required by Vertex AI.
+  const modelParts = [];
+
+  if (modelReply) {
+    modelParts.push({ text: modelReply });
+  }
+
+  // Also include rich tool artifacts as parts so they aren't filtered out of history
   for (const result of toolResults) {
-    // result is e.g. { type: 'image', url: '...', prompt: '...' }
     const { type, ...data } = result;
+    // Add a descriptive text part so the model "sees" the artifact in its history
+    modelParts.push({ text: `[System: Rendered ${type}]` });
+    
+    // Create the rich message separately for UI rendering, but ensure it doesn't break history
+    // We keep these separate because the frontend uses the 'type' field to render different components
     await Message.create({
       sessionId,
       role: "model",
-      parts: [], // Not needed for rich types, but model requires it in schema if allowNull: false
+      parts: [{ text: `[Hidden Artifact: ${type}]` }], // Dummy part to prevent filtering
       type: type,
       content: data,
+    });
+  }
+
+  if (modelParts.length > 0) {
+    await Message.create({
+      sessionId,
+      role: "model",
+      parts: modelParts,
+      type: "text",
     });
   }
 
