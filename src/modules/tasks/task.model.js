@@ -19,9 +19,12 @@ Task.init(
       allowNull: false,
     },
     status: {
-      type: DataTypes.ENUM("pending", "completed"),
+      type: DataTypes.STRING,
       defaultValue: "pending",
       allowNull: false,
+      validate: {
+        isIn: [["pending", "completed"]]
+      }
     },
     dueDate: {
       type: DataTypes.DATE,
