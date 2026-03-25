@@ -4,30 +4,47 @@
  * Gemini Live WebSocket — Smart Agent Proxy.
  *
  * Flow:
- *   1. Browser connects → sends { jwt_token, service_url? }
- *   2. Server authenticates via JWT, builds system prompt for user
- *   3. Server opens WS to GCP BidiGenerateContent
- *   4. Server intercepts GCP messages that contain functionCall parts
- *   5. Server executes tools (RAG, image gen, DB search) and sends functionResponse to GCP
- *   6. GCP sends final audio/text reply → forwarded to browser
+ *   1. Browser connects → sends { jwt_token } or { bearer_token }
+ *   2. Server authenticates, opens WS to GCP BidiGenerateContent
+ *   3. Server intercepts the setup message and injects tool declarations
+ *   4. Server intercepts BidiGenerateContentToolCall messages from GCP
+ *   5. Server executes tools (RAG, image gen, canvas, diagrams) via LiveAgentSession
+ *   6. Server sends BidiGenerateContentToolResponse back to GCP
+ *   7. Server sends rich tool_result payloads to browser for Canvas UI
+ *   8. GCP sends final audio/text reply → forwarded to browser
  *
  * @param {import('ws').WebSocketServer} wss
  */
 
 import { WebSocket } from "ws";
 import config from "../config/index.js";
-import { LiveAgentSession } from "../services/liveAgent.service.js";
+import { LiveAgentSession } from '../modules/agents/liveAgent.service.js';
 import { buildSystemPrompt } from "../config/systemPrompt.js";
+import { TOOL_DECLARATIONS } from "../config/toolDeclarations.js";
 
 const DEFAULT_SERVICE_URL = `wss://${config.gcpApiHost}/ws/google.cloud.aiplatform.v1beta1.LlmBidiService/BidiGenerateContent`;
 
 export function attachProxy(wss) {
-  wss.on("connection", (clientWs) => {
+  wss.on("connection", (clientWs, req) => {
     const session = new LiveAgentSession(clientWs);
     let gcpWs = null;
     let isAuthenticated = false;
+    let isAuthenticating = false;
     let gcpReady = false;
     const pendingMessages = [];
+
+    // Extract HttpOnly JWT cookie from the WebSocket upgrade headers
+    let cookieJwt = null;
+    if (req && req.headers && req.headers.cookie) {
+      const cookies = req.headers.cookie.split(';');
+      for (const c of cookies) {
+        const [name, val] = c.split('=').map(str => str.trim());
+        if (name === 'jwt') {
+          cookieJwt = val;
+          break;
+        }
+      }
+    }
 
     // Kick unauthenticated clients after 10 s
     const authTimeout = setTimeout(() => {
@@ -38,9 +55,23 @@ export function attachProxy(wss) {
       const raw = rawData.toString();
 
       // ── Step 1: Authenticate via JWT ──────────────────────────────────
+      if (isAuthenticating) {
+        // Queue fast follow-up messages while the GCP OAuth is resolving
+        pendingMessages.push(raw);
+        return;
+      }
+
       if (!isAuthenticated) {
+        isAuthenticating = true;
         try {
           const authData = JSON.parse(raw);
+          
+          // Inject the secure HttpOnly cookie JWT into the authData 
+          // (browser JS cannot read it to send it explicitly)
+          if (cookieJwt && !authData.jwt_token) {
+            authData.jwt_token = cookieJwt;
+          }
+
           // Support both JWT auth (new) and legacy bearer_token (fallback)
           let authResult;
           if (authData.jwt_token) {
@@ -63,6 +94,7 @@ export function attachProxy(wss) {
 
           clearTimeout(authTimeout);
           isAuthenticated = true;
+          isAuthenticating = false;
 
           const serviceUrl =
             authResult.serviceUrl ||
@@ -133,6 +165,7 @@ export function attachProxy(wss) {
           });
         } catch (err) {
           console.error("[proxy] Auth error:", err.message);
+          isAuthenticating = false;
           clientWs.close(1008, `Auth failed: ${err.message}`);
         }
         return;
@@ -144,7 +177,20 @@ export function attachProxy(wss) {
         return;
       }
 
-      // ── Step 3: Forward client messages to GCP ────────────────────────
+      // ── Step 3: Intercept setup messages and inject tool declarations ─
+      try {
+        const parsed = JSON.parse(raw);
+        if (parsed.setup) {
+          parsed.setup.tools = [{ function_declarations: TOOL_DECLARATIONS }];
+          console.log(`[proxy] Injected ${TOOL_DECLARATIONS.length} tool declarations into setup`);
+          if (gcpWs?.readyState === WebSocket.OPEN) {
+            gcpWs.send(JSON.stringify(parsed));
+          }
+          return;
+        }
+      } catch { /* not JSON or no setup — forward as-is */ }
+
+      // ── Step 4: Forward client messages to GCP ────────────────────────
       if (gcpWs?.readyState === WebSocket.OPEN) {
         gcpWs.send(raw);
       }

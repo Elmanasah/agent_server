@@ -1,7 +1,7 @@
 import { User, OTP } from "../../models/index.js";
 import AppError from "../../utils/AppError.js";
 import generateToken from "../../utils/genarateTokens.js";
-import MailService from "../../utils/mail.service.js";
+import MailService from "../mail/mail.service.js";
 import jwt from "jsonwebtoken";
 
 export class AuthService {

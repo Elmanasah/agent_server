@@ -17,8 +17,8 @@
  *   { type: "done",        sessionId: "..." }
  */
 
-import { createSession, getSession, appendTurn } from '../../services/session.service.js';
-import { getOrCreateAgent, evictAgent } from '../../services/agent.service.js';
+import { createSession, getSession, appendTurn } from '../sessions/session.service.js';
+import { getOrCreateAgent, evictAgent } from '../agents/agent.service.js';
 import config from '../../config/index.js';
 
 // ── SSE helper ────────────────────────────────────────────────────────────────
@@ -65,14 +65,34 @@ export async function chat(req, res, next) {
             sessionId = session.id;
         }
 
-        const cleanHistory = (session.messages || []).map(({ role, parts }) => ({ role, parts }));
+        // ── Formatted History for Vertex AI ───────────────────────────────────
+        // Vertex AI REQUIRES history to start with 'user' and alternate 'user' -> 'model'.
+        const rawHistory = (session.messages || [])
+            .filter(m => m.parts && m.parts.length > 0)
+            .map(({ role, parts }) => ({ role: role === 'model' ? 'model' : 'user', parts }));
+
+        const cleanHistory = [];
+        for (const msg of rawHistory) {
+            if (cleanHistory.length === 0) {
+                if (msg.role === 'user') cleanHistory.push(msg);
+                continue;
+            }
+            const lastRole = cleanHistory[cleanHistory.length - 1].role;
+            if (msg.role !== lastRole) {
+                cleanHistory.push(msg);
+            } else {
+                // Merge consecutive same-role messages (defensive)
+                cleanHistory[cleanHistory.length - 1].parts.push(...msg.parts);
+            }
+        }
+
         const agent = getOrCreateAgent(sessionId, cleanHistory, user);
 
         // ── RAG retrieval (still useful as a pre-fetch hint, tools can also trigger it) ──
         let ragContext = null;
         if (message?.trim() && config.ragEnabled) {
             try {
-                const { retrieveContext } = await import('../../services/rag.service.js');
+                const { retrieveContext } = await import('../rag/rag.service.js');
                 ragContext = await retrieveContext(userId, message);
                 if (ragContext) console.log(`[chat] RAG pre-fetch injected (${ragContext.length} chars)`);
             } catch (ragErr) {
@@ -89,7 +109,7 @@ export async function chat(req, res, next) {
         );
 
         // Persist turn to DB
-        await appendTurn(sessionId, userParts, reply);
+        await appendTurn(sessionId, userParts, reply, toolResults);
 
         // Send done event
         sendEvent(res, { type: 'done', sessionId, toolResults });

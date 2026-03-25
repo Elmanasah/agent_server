@@ -2,8 +2,8 @@
  * src/modules/sessions/sessions.controller.js
  */
 
-import { listSessions, getSession, deleteSession } from '../../services/session.service.js';
-import { evictAgent } from '../../services/agent.service.js';
+import { listSessions, getSession, deleteSession } from './session.service.js';
+import { evictAgent } from '../agents/agent.service.js';
 
 /**
  * GET /sessions
