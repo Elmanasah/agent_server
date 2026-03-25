@@ -13,22 +13,19 @@ import app from "./app.js";
 import config from "./config/index.js";
 import { sequelize } from "./models/index.js";
 import { attachProxy } from "./websocket/proxy.js";
-import { initUsageScheduler } from "./services/usageScheduler.js";  // ← ADD THIS
-import { runMigrations } from "./utils/runMigrations.js";          // ← ADD THIS
+import { initUsageScheduler } from "./modules/usage/usageScheduler.js";
 
 // ── HTTP + WebSocket server ────────────────────────────────────────────────────
 const server = createServer(app);
 const wss = new WebSocketServer({ server });
 
 attachProxy(wss);
-
 // ── Start ─────────────────────────────────────────────────────────────────────
 async function start() {
   try {
     // Verify DB connection
     await sequelize.authenticate();
     console.log("✅ Database  connected to CockroachDB");
-    await runMigrations();    
     initUsageScheduler();    
     console.log("✅ Scheduler usage reset job started");  // ← add this                                   // ← ADD THIS
     // CockroachDB does not support Sequelize's multi-statement ALTER

@@ -1,6 +1,6 @@
 // src/modules/usage/usage.controller.js
 
-import { UsageService } from '../../services/usage.service.js';
+import { UsageService } from './usage.service.js';
 import AppError from '../../utils/AppError.js';
 import { catchAsync } from '../../utils/catchAsync.js';
 

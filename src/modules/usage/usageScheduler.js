@@ -1,11 +1,7 @@
-// src/services/usageScheduler.js
+// src/modules/usage/usageScheduler.js
 //
 // Runs every hour and resets usage counters for users
 // whose daily/monthly period has expired.
-//
-// Simple explanation:
-//   Every hour → check database → find users whose timer ran out
-//   → reset their counters to 0 → they can use the app again
 
 import cron from 'node-cron';
 import { UsageService } from './usage.service.js';
@@ -13,11 +9,9 @@ import { UsageService } from './usage.service.js';
 let started = false;
 
 export function initUsageScheduler() {
-  // Prevent registering the job twice if called more than once
   if (started) return;
   started = true;
 
-  // Run at the start of every hour (e.g. 1:00, 2:00, 3:00...)
   cron.schedule('0 * * * *', async () => {
     try {
       const count = await UsageService.runScheduledReset();

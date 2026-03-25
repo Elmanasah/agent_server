@@ -10,7 +10,7 @@
 // NOTE: For chat requests, usage is checked INSIDE agent.service.js
 // This middleware is for other routes like document upload.
 
-import { UsageService } from '../services/usage.service.js';
+import { UsageService } from '../modules/usage/usage.service.js';
 import AppError from '../utils/AppError.js';
 
 export const usageGuard = (resourceType, quantity = 1) => {

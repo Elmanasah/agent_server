@@ -14,14 +14,13 @@
  * In-memory agent cache (sessionId → Agent) lives here.
  * On a cache miss the caller passes the full DB history for context replay.
  */
-
 import { VertexAI } from '@google-cloud/vertexai';
-import config from '../config/index.js';
-import { buildSystemPrompt } from '../config/systemPrompt.js';
-import { retrieveContext } from './rag.service.js';
-import { generateImage } from './image.service.js';
+import config from '../../config/index.js';
+import { buildSystemPrompt } from '../../config/systemPrompt.js';
+import { retrieveContext } from '../rag/rag.service.js';
+import { generateImage }   from '../image/image.service.js';
 // add this line near your other imports
-import { UsageService, RESOURCE_TYPES } from './usage.service.js';
+import { UsageService, RESOURCE_TYPES } from '../usage/usage.service.js';
 import { TOOL_DECLARATIONS } from '../../config/toolDeclarations.js';
 import { searchSessions } from '../sessions/sessionSearch.service.js';
 import { User, Document, Session, Message, Memory, Task } from '../../models/index.js';
@@ -202,6 +201,11 @@ export class Agent {
                     return { text: `Image limit reached (${imgUsage.limit}/period). Resets at ${imgUsage.reset_at}.` };
                   }
                 }
+                const imageResult = await generateImage(args.prompt);
+                return {
+                    text: `Image generated for prompt: "${args.prompt}"`,
+                    image: { url: imageResult.imageUrl, prompt: args.prompt },
+                };
             }
 
             case 'render_canvas': {
