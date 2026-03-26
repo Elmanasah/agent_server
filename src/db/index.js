@@ -11,7 +11,7 @@ import config from '../config/index.js';
 // Create Sequelize instance
 // Fallback to a dummy string if URL is missing to avoid crashing on import in CI/CD environments.
 // Real connections will still fail at authenticate() if the URL is truly required.
-const dbUrl = config.databaseUrl || 'postgres://localhost:5432/horus_db';
+const dbUrl = config.databaseUrl || 'postgres://testuser:testpassword@localhost:5432/testdb';
 const useSsl = dbUrl.includes('sslmode=require') || dbUrl.includes('sslmode=verify-full') || dbUrl.includes('cockroachlabs.cloud');
 
 const sequelize = new Sequelize(dbUrl, {
