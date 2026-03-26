@@ -8,7 +8,10 @@
 import { Sequelize } from 'sequelize';
 import config from '../config/index.js';
 
-const sequelize = new Sequelize(config.databaseUrl, {
+// Create Sequelize instance
+// Fallback to a dummy string if URL is missing to avoid crashing on import in CI/CD environments.
+// Real connections will still fail at authenticate() if the URL is truly required.
+const sequelize = new Sequelize(config.databaseUrl || 'postgres://localhost:5432/placeholder', {
     dialect: 'postgres',
     dialectOptions: {
         ssl: { require: true, rejectUnauthorized: false },
