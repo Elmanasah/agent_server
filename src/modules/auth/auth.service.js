@@ -3,7 +3,6 @@ import AppError from "../../utils/AppError.js";
 import generateToken from "../../utils/genarateTokens.js";
 import MailService from "../mail/mail.service.js";
 import jwt from "jsonwebtoken";
-import { LogService } from '../logs/log.service.js';
 
 export class AuthService {
   // ── Register ──────────────────────────────────────────────────────────────

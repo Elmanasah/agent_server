@@ -3,6 +3,7 @@ import { Op } from 'sequelize';
 import UserUsage from './userUsage.model.js';
 import UsagePlan from './usagePlan.model.js';
 import AppError from '../../utils/AppError.js';
+import { LogService } from '../logs/log.service.js';
 
 export const RESOURCE_TYPES = {
   IMAGE:    'image',
