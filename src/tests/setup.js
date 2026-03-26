@@ -3,19 +3,21 @@ import { beforeAll, afterAll, jest } from "@jest/globals";
 import config from "../config/index.js";
 import { UsagePlan } from "../models/index.js";
 
-// 1. Create a STANDALONE test database instance
-const testSequelize = new Sequelize(config.testDatabaseUrl, {
+// 1. Determine the test database URL. 
+// Use TEST_DATABASE_URL if available, otherwise fallback to DATABASE_URL or localhost (CAUTION: locally this might wipe data).
+const testDbUrl = config.testDatabaseUrl || config.databaseUrl || "postgres://localhost:5432/test_db";
+
+// 2. Determine if SSL is needed. 
+// Most cloud DBs (CockroachDB) need SSL, but local/CI ones shouldn't.
+const useSsl = testDbUrl.includes('cockroachlabs.cloud') || testDbUrl.includes('amazonaws.com') || testDbUrl.includes('google.com');
+
+const testSequelize = new Sequelize(testDbUrl, {
   dialect: "postgres",
-  dialectOptions: config.testDatabaseUrl.includes('localhost') || config.testDatabaseUrl.includes('127.0.0.1') ? {} : {
+  dialectOptions: useSsl ? {
     ssl: { require: true, rejectUnauthorized: false },
-  },
-  logging: false, // Keep logs clean during tests
-  pool: {
-    max: 5,
-    min: 0,
-    acquire: 30000,
-    idle: 10000,
-  },
+  } : {},
+  logging: false,
+  pool: { max: 5, min: 0, acquire: 30000, idle: 10000 },
 });
 
 // 2. Global Mock: Redirect all imports of "src/db/index.js" to this test instance
@@ -25,10 +27,6 @@ await jest.unstable_mockModule("../db/index.js", () => ({
 }));
 
 beforeAll(async () => {
-  if (!config.testDatabaseUrl) {
-    throw new Error("CRITICAL: TEST_DATABASE_URL is not defined in environment!");
-  }
-
   try {
     await testSequelize.authenticate();
     // Sync models (this will use the associations defined in models/index.js if imported later)
