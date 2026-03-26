@@ -8,11 +8,17 @@
 import { Sequelize } from 'sequelize';
 import config from '../config/index.js';
 
-const sequelize = new Sequelize(config.databaseUrl, {
+// Create Sequelize instance
+// Fallback to a dummy string if URL is missing to avoid crashing on import in CI/CD environments.
+// Real connections will still fail at authenticate() if the URL is truly required.
+const dbUrl = config.databaseUrl || 'postgres://testuser:testpassword@localhost:5432/testdb';
+const useSsl = dbUrl.includes('sslmode=require') || dbUrl.includes('sslmode=verify-full') || dbUrl.includes('cockroachlabs.cloud');
+
+const sequelize = new Sequelize(dbUrl, {
     dialect: 'postgres',
-    dialectOptions: {
+    dialectOptions: useSsl ? {
         ssl: { require: true, rejectUnauthorized: false },
-    },
+    } : {},
     logging: config.isDev ? (msg) => console.log('[sql]', msg) : false,
     pool: {
         max: 5,

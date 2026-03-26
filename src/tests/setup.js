@@ -1,15 +1,22 @@
 import { Sequelize } from "sequelize";
 import { beforeAll, afterAll, jest } from "@jest/globals";
 import config from "../config/index.js";
-import { UsagePlan } from "../models/index.js";
+
+// Increase timeout for slow database operations (e.g. CockroachDB sync)
+jest.setTimeout(60000);
+
+// We'll import models dynamically later to avoid ESM hoisting issues
+let UsagePlan;
 
 // 1. Determine the test database URL. 
-// Use TEST_DATABASE_URL if available, otherwise fallback to DATABASE_URL or localhost (CAUTION: locally this might wipe data).
 const testDbUrl = config.testDatabaseUrl || config.databaseUrl || "postgres://localhost:5432/test_db";
 
 // 2. Determine if SSL is needed. 
-// Most cloud DBs (CockroachDB) need SSL, but local/CI ones shouldn't.
-const useSsl = testDbUrl.includes('cockroachlabs.cloud') || testDbUrl.includes('amazonaws.com') || testDbUrl.includes('google.com');
+const isLocal = testDbUrl.includes('localhost') || testDbUrl.includes('127.0.0.1') || testDbUrl.includes('postgres') || testDbUrl.includes('db');
+const hasSslMode = testDbUrl.includes('sslmode=require') || testDbUrl.includes('sslmode=verify-full');
+const isCloud  = testDbUrl.includes('cockroachlabs.cloud') || testDbUrl.includes('amazonaws.com') || testDbUrl.includes('google.com');
+
+const useSsl = hasSslMode || (isCloud && !isLocal);
 
 const testSequelize = new Sequelize(testDbUrl, {
   dialect: "postgres",
@@ -21,15 +28,18 @@ const testSequelize = new Sequelize(testDbUrl, {
 });
 
 // 2. Global Mock: Redirect all imports of "src/db/index.js" to this test instance
-// This ensures models and services use the test DB without touching the real config.
 await jest.unstable_mockModule("../db/index.js", () => ({
   default: testSequelize,
 }));
 
 beforeAll(async () => {
   try {
+    // Dynamically import models AFTER the mock is active
+    const models = await import("../models/index.js");
+    UsagePlan = models.UsagePlan;
+
     await testSequelize.authenticate();
-    // Sync models (this will use the associations defined in models/index.js if imported later)
+    // Sync models (this will now sync all models imported above)
     await testSequelize.sync({ force: true });
     
     // Seed default plans for tests
