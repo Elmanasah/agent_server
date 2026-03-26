@@ -14,6 +14,7 @@ import config from "./config/index.js";
 import { sequelize } from "./models/index.js";
 import { attachProxy } from "./websocket/proxy.js";
 import { initUsageScheduler } from "./modules/usage/usageScheduler.js";
+import { initLogScheduler } from "./modules/logs/logScheduler.js";
 
 // ── HTTP + WebSocket server ────────────────────────────────────────────────────
 const server = createServer(app);
@@ -26,8 +27,10 @@ async function start() {
     // Verify DB connection
     await sequelize.authenticate();
     console.log("✅ Database  connected to CockroachDB");
-    initUsageScheduler();    
-    console.log("✅ Scheduler usage reset job started");  // ← add this                                   // ← ADD THIS
+    initUsageScheduler();
+    console.log("✅ Scheduler usage reset job started");
+    initLogScheduler();
+    console.log("✅ Scheduler log purge job started");                                   // ← ADD THIS
     // CockroachDB does not support Sequelize's multi-statement ALTER
     // uncomment this if you need to update the db collections other don't touch it please
     // await sequelize.sync({ force: true, alter: true });

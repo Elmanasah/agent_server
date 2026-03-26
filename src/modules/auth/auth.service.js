@@ -1,8 +1,9 @@
-import { User, OTP } from "../../models/index.js";
+import { User, OTP, UserUsage } from "../../models/index.js";
 import AppError from "../../utils/AppError.js";
 import generateToken from "../../utils/genarateTokens.js";
 import MailService from "../mail/mail.service.js";
 import jwt from "jsonwebtoken";
+import { LogService } from '../logs/log.service.js';
 
 export class AuthService {
   // ── Register ──────────────────────────────────────────────────────────────
@@ -61,7 +62,15 @@ export class AuthService {
       bio: userData.bio || null,
     });
 
-    // 4. Generate token
+    // 4. Auto-assign the default 'free' plan
+    await UserUsage.create({
+      userId:      user.id,
+      planName:    'free',
+      periodStart: new Date(),
+      lastResetAt: new Date(),
+    });
+
+    // 5. Generate token
     const token = await generateToken({ id: user.id, role: user.role });
 
     return { user: user.toSafeJSON(), token };
@@ -78,7 +87,17 @@ export class AuthService {
     if (!isMatch) {
       throw new AppError("Invalid credentials", 401);
     }
-
+    // this one so we don't destory our pr db and fix any possible error and this is the easiest way put may be the worst on performonce put i am lazy to fix it
+    const havePlan = await UserUsage.findOne({ where: { userId: user.id } });
+    if (!havePlan) {
+      await UserUsage.create({
+        userId:      user.id,
+        planName:    'free',
+        periodStart: new Date(),
+        lastResetAt: new Date(),
+      });
+    }
+    
     const token = await generateToken({ id: user.id, role: user.role });
     return { user: user.toSafeJSON(), token };
   }

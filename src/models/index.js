@@ -5,8 +5,9 @@ import DocumentModel from '../modules/documents/document.model.js';
 import OTPModel     from '../modules/auth/otp.model.js';
 import MemoryModel  from '../modules/memory/memory.model.js';
 import TaskModel    from '../modules/tasks/task.model.js';
-import UsagePlanModel  from '../modules/usage/usagePlan.model.js';   // ← ADD
-import UserUsageModel  from '../modules/usage/userUsage.model.js';   // ← ADD
+import UsagePlanModel  from '../modules/usage/usagePlan.model.js';
+import UserUsageModel  from '../modules/usage/userUsage.model.js';
+import LogModel     from '../modules/logs/log.model.js';
 import sequelize    from '../db/index.js';
 
 // ── Existing associations (unchanged) ────────────────────────────────────────
@@ -22,9 +23,14 @@ UserModel.hasMany(TaskModel, { foreignKey: 'userId', as: 'tasks', onDelete: 'CAS
 TaskModel.belongsTo(UserModel, { foreignKey: 'userId', as: 'user' });
 
 // ── Usage associations ────────────────────────────────────────────────────────
-UserModel.hasOne(UserUsageModel, { foreignKey: 'userId', as: 'usage', onDelete: 'CASCADE' }); // ← ADD
-UserUsageModel.belongsTo(UserModel, { foreignKey: 'userId', as: 'user' });                    // ← ADD
-UserUsageModel.belongsTo(UsagePlanModel, { foreignKey: 'planName', targetKey: 'planName', as: 'plan' }); // ← ADD
+UserModel.hasOne(UserUsageModel, { foreignKey: 'userId', as: 'usage', onDelete: 'CASCADE' });
+UserUsageModel.belongsTo(UserModel, { foreignKey: 'userId', as: 'user' });
+UserUsageModel.belongsTo(UsagePlanModel, { foreignKey: 'planName', targetKey: 'planName', as: 'plan' });
+
+// ── Log associations ──────────────────────────────────────────────────────────
+// userId is nullable (system logs have no user)
+UserModel.hasMany(LogModel, { foreignKey: 'userId', as: 'logs', onDelete: 'CASCADE' });
+LogModel.belongsTo(UserModel, { foreignKey: 'userId', as: 'user' });
 
 export const User      = UserModel;
 export const Session   = SessionModel;
@@ -33,7 +39,8 @@ export const Document  = DocumentModel;
 export const OTP       = OTPModel;
 export const Memory    = MemoryModel;
 export const Task      = TaskModel;
-export const UsagePlan = UsagePlanModel;   // ← ADD
-export const UserUsage = UserUsageModel;   // ← ADD
+export const UsagePlan = UsagePlanModel;
+export const UserUsage = UserUsageModel;
+export const Log       = LogModel;
 
 export { sequelize };

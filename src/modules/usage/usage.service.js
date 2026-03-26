@@ -1,6 +1,8 @@
 import sequelize from '../../db/index.js';
+import { Op } from 'sequelize';
 import UserUsage from './userUsage.model.js';
 import UsagePlan from './usagePlan.model.js';
+import AppError from '../../utils/AppError.js';
 
 export const RESOURCE_TYPES = {
   IMAGE:    'image',
@@ -18,55 +20,66 @@ const RESOURCE_COLUMNS = {
 
 export class UsageService {
 
-  static async _getOrCreateUsageRow(userId, transaction) {
-    const [row] = await UserUsage.findOrCreate({
-      where: { userId },
-      defaults: { userId, planName: 'free' },
-      transaction,
-    });
-    return row;
-  }
 
   static async checkAndIncrement(userId, resource, quantity = 1) {
     const cols = RESOURCE_COLUMNS[resource];
     if (!cols) throw new Error(`Unknown resource type: ${resource}`);
 
     return await sequelize.transaction(async (t) => {
-      const usageRow = await UserUsage.findOne({
+      // ── Step 1: Lock ONLY the user_usage row (no JOIN) ──────────
+      // CockroachDB does not allow FOR UPDATE on the nullable side of
+      // a LEFT OUTER JOIN. We lock just the usage row, then fetch the
+      // plan in a separate query.
+      let usageRow = await UserUsage.findOne({
         where: { userId },
-        include: [{ model: UsagePlan, as: 'plan', foreignKey: 'planName', targetKey: 'planName' }],
-        lock: t.LOCK.UPDATE,
+        lock:  t.LOCK.UPDATE,
         transaction: t,
-      }) || await this._getOrCreateUsageRow(userId, t);
+      });
 
-      // Reload with plan if just created
-      const row = usageRow.plan
-        ? usageRow
-        : await UserUsage.findOne({
-            where: { userId },
-            include: [{ model: UsagePlan, as: 'plan', foreignKey: 'planName', targetKey: 'planName' }],
-            lock: t.LOCK.UPDATE,
-            transaction: t,
-          });
+      if (!usageRow) {
+        // Safe create (CockroachDB doesn't support Sequelize findOrCreate)
+        try {
+          await UserUsage.create({ userId, planName: 'free' }, { transaction: t });
+        } catch (err) {
+          if (err.name !== 'SequelizeUniqueConstraintError') throw err;
+        }
+        usageRow = await UserUsage.findOne({
+          where: { userId },
+          lock:  t.LOCK.UPDATE,
+          transaction: t,
+        });
+      }
 
-      const plan = row.plan;
-      const currentUsed = row[cols.used];
-      const planLimit   = plan[cols.limit];
+      // ── Step 2: Fetch plan (no lock needed — plans are read-only) ─
+      const plan = await UsagePlan.findOne({
+        where: { planName: usageRow.planName },
+        transaction: t,
+      });
+
+      if (!plan) {
+        throw new AppError(`Plan '${usageRow.planName}' not found. Cannot determine limits.`, 500);
+      }
+
+      // 💥 COCKROACH DB FIX: BigInts/Ints are returned as STRINGS by the PG driver to prevent precision loss.
+      // E.g '1' + 1 = '11', which evaluates String('11') > String('100') as TRUE!
+      // Must cast to Number.
+      const currentUsed = Number(usageRow[cols.used]) || 0;
+      const planLimit   = Number(plan[cols.limit]) || 0;
       const resetAt     = plan.resetPeriod === 'daily'
-        ? new Date(new Date(row.periodStart).getTime() + 86400000)
-        : new Date(new Date(row.periodStart).setMonth(new Date(row.periodStart).getMonth() + 1));
+        ? new Date(new Date(usageRow.periodStart).getTime() + 86400000)
+        : new Date(new Date(usageRow.periodStart).setMonth(new Date(usageRow.periodStart).getMonth() + 1));
 
-      if (row.isLocked) {
-        return { allowed: false, is_locked: true, lock_reason: row.lockReason, current: currentUsed, limit: 0, remaining: 0, plan: row.planName, reset_at: resetAt };
+      if (usageRow.isLocked) {
+        return { allowed: false, is_locked: true, lock_reason: usageRow.lockReason, current: currentUsed, limit: 0, remaining: 0, plan: usageRow.planName, reset_at: resetAt };
       }
 
       if (currentUsed + quantity > planLimit) {
-        return { allowed: false, is_locked: false, current: currentUsed, limit: planLimit, remaining: Math.max(planLimit - currentUsed, 0), plan: row.planName, reset_at: resetAt };
+        return { allowed: false, is_locked: false, current: currentUsed, limit: planLimit, remaining: Math.max(planLimit - currentUsed, 0), plan: usageRow.planName, reset_at: resetAt };
       }
 
-      await row.increment(cols.used, { by: quantity, transaction: t });
+      await usageRow.increment(cols.used, { by: quantity, transaction: t });
 
-      return { allowed: true, is_locked: false, current: currentUsed + quantity, limit: planLimit, remaining: planLimit - (currentUsed + quantity), plan: row.planName, reset_at: resetAt };
+      return { allowed: true, is_locked: false, current: currentUsed + quantity, limit: planLimit, remaining: planLimit - (currentUsed + quantity), plan: usageRow.planName, reset_at: resetAt };
     });
   }
 
@@ -77,11 +90,22 @@ export class UsageService {
     });
 
     if (!row) {
-      await UserUsage.findOrCreate({ where: { userId }, defaults: { userId } });
-      return this.getUserUsageSummary(userId);
+      try {
+        await UserUsage.create({ userId, planName: 'free' });
+      } catch (err) {
+        if (err.name !== 'SequelizeUniqueConstraintError') throw err;
+      }
+      row = await UserUsage.findOne({
+        where: { userId },
+        include: [{ model: UsagePlan, as: 'plan', foreignKey: 'planName', targetKey: 'planName' }],
+      });
+      if (!row) throw new AppError('Failed to initialize usage row', 500);
     }
 
-    const { plan } = row;
+    const plan = row.plan;
+    if (!plan) {
+      throw new AppError(`Assigned plan '${row.planName}' does not exist.`, 500);
+    }
     const resetAt = plan.resetPeriod === 'daily'
       ? new Date(new Date(row.periodStart).getTime() + 86400000)
       : new Date(new Date(row.periodStart).setMonth(new Date(row.periodStart).getMonth() + 1));
@@ -104,8 +128,13 @@ export class UsageService {
   }
 
   static async setUserPlan(userId, planName) {
+    // Verify the plan actually exists before updating
+    const plan = await UsagePlan.findOne({ where: { planName } });
+    if (!plan) throw new AppError(`Plan '${planName}' does not exist.`, 400);
+
     const [updated] = await UserUsage.update({ planName }, { where: { userId } });
-    if (!updated) throw new Error(`No usage row found for user ${userId}`);
+    if (!updated) throw new AppError(`No usage row found for user ${userId}`, 404);
+    
     return planName;
   }
 
@@ -126,21 +155,39 @@ export class UsageService {
 
   static async runScheduledReset() {
     const now = new Date();
-    const rows = await UserUsage.findAll({
+
+    // ── daily plans: periodStart older than 24 h ──────────────────────────────
+    const dailyExpiry  = new Date(now.getTime() - 86400000);
+
+    // ── monthly plans: handled by JS logic.
+    // We only fetch rows that are at least 24h old as a quick DB pre-filter
+    // because no plan needs a reset if it started less than 24h ago.
+    const candidates = await UserUsage.findAll({
+      where: {
+        periodStart: { [Op.lte]: dailyExpiry },
+      },
       include: [{ model: UsagePlan, as: 'plan', foreignKey: 'planName', targetKey: 'planName' }],
     });
 
-    let count = 0;
-    for (const row of rows) {
-      const expired =
-        (row.plan.resetPeriod === 'daily'   && now - new Date(row.periodStart) >= 86400000) ||
-        (row.plan.resetPeriod === 'monthly' && now >= new Date(new Date(row.periodStart).setMonth(new Date(row.periodStart).getMonth() + 1)));
-
-      if (expired) {
-        await row.update({ imagesUsed: 0, videosUsed: 0, apiCallsUsed: 0, documentsUsed: 0, periodStart: now, lastResetAt: now });
-        count++;
+    const toReset = candidates.filter(row => {
+      if (row.plan.resetPeriod === 'daily') {
+        return new Date(row.periodStart) <= dailyExpiry;
       }
+      // monthly: check exact calendar month boundary
+      const nextReset = new Date(new Date(row.periodStart).setMonth(new Date(row.periodStart).getMonth() + 1));
+      return now >= nextReset;
+    });
+
+    let count = 0;
+    for (const row of toReset) {
+      await row.update({ imagesUsed: 0, videosUsed: 0, apiCallsUsed: 0, documentsUsed: 0, periodStart: now, lastResetAt: now });
+      count++;
     }
+
+    if (count > 0) {
+      await LogService.write({ category: 'system', action: 'scheduled_usage_reset', meta: { usersAffected: count } });
+    }
+
     console.log(`[UsageService] Scheduled reset — affected ${count} users`);
     return count;
   }

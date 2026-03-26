@@ -1,7 +1,8 @@
 import passport from 'passport';
 import { Strategy as GoogleStrategy } from 'passport-google-oauth20';
-import { User } from '../models/index.js';
+import { User, UserUsage } from '../models/index.js';
 import generateToken from '../utils/genarateTokens.js';
+import { LogService } from '../modules/logs/log.service.js';
 import dotenv from 'dotenv';
 
 dotenv.config();
@@ -36,13 +37,21 @@ passport.use(
           return done(null, { user, token });
         }
 
-        // 3. Create new user
+        // 3. Create new user + assign default plan
         user = await User.create({
           googleId: profile.id,
           name: profile.displayName,
           email: profile.emails[0].value,
           avatar: profile.photos[0]?.value || null,
           role: 'user',
+        });
+
+        // Auto-assign the free plan for every new Google user
+        await UserUsage.create({
+          userId:      user.id,
+          planName:    'free',
+          periodStart: new Date(),
+          lastResetAt: new Date(),
         });
 
         const token = await generateToken({ id: user.id, role: user.role });

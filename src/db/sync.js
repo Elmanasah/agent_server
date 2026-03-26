@@ -7,7 +7,7 @@
      * Force full reset:   FORCE=true node src/db/sync.js  ⚠️  DESTROYS ALL DATA
      */
     import '../config/index.js';
-    import { sequelize, User, Session, Message, Document, OTP, Memory, Task, UsagePlan, UserUsage } from '../models/index.js';
+    import { sequelize, User, Session, Message, Document, OTP, Memory, Task, UsagePlan, UserUsage, Log } from '../models/index.js';
 
     const force = process.env.FORCE === 'true';
 
@@ -25,32 +25,35 @@
         console.log('🔄 Syncing models...');
 
         // Sync each model in FK-dependency order
-        await User.sync({ force });
+        await User.sync({ force:true,alter:true });
 console.log('   ✓ users');
 
-await Session.sync({ force });
+await Session.sync({ force:true,alter:true });
 console.log('   ✓ sessions');
 
-await Message.sync({ force });
+await Message.sync({ force:true,alter:true });
 console.log('   ✓ messages');
 
-await Document.sync({ force });
+await Document.sync({ force:true,alter:true });
 console.log('   ✓ documents');
 
-await OTP.sync({ force });
+await OTP.sync({ force:true,alter:true });
 console.log('   ✓ otps');
 
-await Memory.sync({ force });
+await Memory.sync({ force:true,alter:true });
 console.log('   ✓ memories');
 
-await Task.sync({ force });
+await Task.sync({ force:true,alter:true });
 console.log('   ✓ tasks');
 
-await UsagePlan.sync({ force });
+await UsagePlan.sync({ force:true,alter:true });
 console.log('   ✓ usage_plans');
 
-await UserUsage.sync({ force });
+await UserUsage.sync({ force:true,alter:true });
 console.log('   ✓ user_usage');
+
+await Log.sync({ force:true,alter:true });
+console.log('   ✓ activity_logs');
 
         // Seed default plans after sync
         // ✅ Using upsert() instead of findOrCreate() — CockroachDB does not support
