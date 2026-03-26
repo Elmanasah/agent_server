@@ -3,13 +3,13 @@ import { beforeAll, afterAll, jest } from "@jest/globals";
 import config from "../config/index.js";
 import { UsagePlan } from "../models/index.js";
 
+// Increase timeout for slow database operations (e.g. CockroachDB sync)
+jest.setTimeout(60000);
+
 // 1. Determine the test database URL. 
-// Use TEST_DATABASE_URL if available, otherwise fallback to DATABASE_URL or localhost (CAUTION: locally this might wipe data).
 const testDbUrl = config.testDatabaseUrl || config.databaseUrl || "postgres://localhost:5432/test_db";
 
 // 2. Determine if SSL is needed. 
-// Most cloud DBs (CockroachDB) need SSL, but local/CI ones shouldn't.
-// Check for explicit sslmode in URL or known cloud providers, but EXCLUDE local hostnames.
 const isLocal = testDbUrl.includes('localhost') || testDbUrl.includes('127.0.0.1') || testDbUrl.includes('postgres') || testDbUrl.includes('db');
 const hasSslMode = testDbUrl.includes('sslmode=require') || testDbUrl.includes('sslmode=verify-full');
 const isCloud  = testDbUrl.includes('cockroachlabs.cloud') || testDbUrl.includes('amazonaws.com') || testDbUrl.includes('google.com');
