@@ -28,6 +28,7 @@ beforeAll(async () => {
     await testSequelize.sync({ force: true });
     
     // Seed default plans for tests
+    // This is REQUIRED because the registration logic now auto-assigns the 'free' plan.
     await UsagePlan.bulkCreate([
       { planName: 'free',       imageLimit: 10,   videoLimit: 5,    apiCallLimit: 1000,   documentLimit: 20,   resetPeriod: 'daily'   },
       { planName: 'pro',        imageLimit: 100,  videoLimit: 50,   apiCallLimit: 10000,  documentLimit: 200,  resetPeriod: 'daily'   },
