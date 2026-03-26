@@ -830,6 +830,245 @@
                     }
                 }
             ]
+        },
+        {
+            "name": "Usage (User + Admin)",
+            "description": "Usage quota tracking. GET /me for any logged-in user. All /admin/* routes require admin role.",
+            "item": [
+                {
+                    "name": "Get My Usage",
+                    "request": {
+                        "method": "GET",
+                        "header": [],
+                        "url": {
+                            "raw": "{{baseUrl}}/usage/me",
+                            "host": ["{{baseUrl}}"],
+                            "path": ["usage", "me"]
+                        },
+                        "description": "Returns the current user's quota usage summary: plan, counters, limits, next reset."
+                    }
+                },
+                {
+                    "name": "Admin — Get User Usage",
+                    "request": {
+                        "method": "GET",
+                        "header": [],
+                        "url": {
+                            "raw": "{{baseUrl}}/usage/admin/:userId",
+                            "host": ["{{baseUrl}}"],
+                            "path": ["usage", "admin", ":userId"],
+                            "variable": [{"key": "userId", "value": "<user-uuid>"}]
+                        },
+                        "description": "Admin: view usage summary for any user."
+                    }
+                },
+                {
+                    "name": "Admin — Change User Plan",
+                    "request": {
+                        "method": "PATCH",
+                        "header": [],
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n  \"plan\": \"pro\"\n}",
+                            "options": {"raw": {"language": "json"}}
+                        },
+                        "url": {
+                            "raw": "{{baseUrl}}/usage/admin/:userId/plan",
+                            "host": ["{{baseUrl}}"],
+                            "path": ["usage", "admin", ":userId", "plan"],
+                            "variable": [{"key": "userId", "value": "<user-uuid>"}]
+                        },
+                        "description": "Admin: assign a different plan to a user. Plan must exist in the plans table."
+                    }
+                },
+                {
+                    "name": "Admin — Reset User Counters",
+                    "request": {
+                        "method": "POST",
+                        "header": [],
+                        "url": {
+                            "raw": "{{baseUrl}}/usage/admin/:userId/reset",
+                            "host": ["{{baseUrl}}"],
+                            "path": ["usage", "admin", ":userId", "reset"],
+                            "variable": [{"key": "userId", "value": "<user-uuid>"}]
+                        },
+                        "description": "Admin: manually reset a user's usage counters to zero."
+                    }
+                },
+                {
+                    "name": "Admin — Lock User Account",
+                    "request": {
+                        "method": "POST",
+                        "header": [],
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n  \"reason\": \"Exceeded payment threshold\"\n}",
+                            "options": {"raw": {"language": "json"}}
+                        },
+                        "url": {
+                            "raw": "{{baseUrl}}/usage/admin/:userId/lock",
+                            "host": ["{{baseUrl}}"],
+                            "path": ["usage", "admin", ":userId", "lock"],
+                            "variable": [{"key": "userId", "value": "<user-uuid>"}]
+                        },
+                        "description": "Admin: billing-lock a user's account. All subsequent requests from this user will receive 403."
+                    }
+                },
+                {
+                    "name": "Admin — Unlock User Account",
+                    "request": {
+                        "method": "POST",
+                        "header": [],
+                        "url": {
+                            "raw": "{{baseUrl}}/usage/admin/:userId/unlock",
+                            "host": ["{{baseUrl}}"],
+                            "path": ["usage", "admin", ":userId", "unlock"],
+                            "variable": [{"key": "userId", "value": "<user-uuid>"}]
+                        },
+                        "description": "Admin: remove a billing lock from a user's account."
+                    }
+                },
+                {
+                    "name": "Admin — Trigger Scheduled Reset (All Users)",
+                    "request": {
+                        "method": "POST",
+                        "header": [],
+                        "url": {
+                            "raw": "{{baseUrl}}/usage/admin/reset-all",
+                            "host": ["{{baseUrl}}"],
+                            "path": ["usage", "admin", "reset-all"]
+                        },
+                        "description": "Admin: manually trigger the scheduled usage reset for all users whose period has expired. Returns the count of affected users."
+                    }
+                }
+            ]
+        },
+        {
+            "name": "Plans (Admin)",
+            "description": "CRUD for usage plans. All routes require admin role. Plans control resource limits for all users.",
+            "item": [
+                {
+                    "name": "Get All Plans",
+                    "request": {
+                        "method": "GET",
+                        "header": [],
+                        "url": {
+                            "raw": "{{baseUrl}}/plans",
+                            "host": ["{{baseUrl}}"],
+                            "path": ["plans"]
+                        },
+                        "description": "Returns all usage plans ordered by name."
+                    }
+                },
+                {
+                    "name": "Get Plan by Name",
+                    "request": {
+                        "method": "GET",
+                        "header": [],
+                        "url": {
+                            "raw": "{{baseUrl}}/plans/:name",
+                            "host": ["{{baseUrl}}"],
+                            "path": ["plans", ":name"],
+                            "variable": [{"key": "name", "value": "free"}]
+                        },
+                        "description": "Returns a single plan by its planName (e.g. 'free', 'pro', 'enterprise')."
+                    }
+                },
+                {
+                    "name": "Create Plan",
+                    "request": {
+                        "method": "POST",
+                        "header": [],
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n  \"planName\": \"starter\",\n  \"imageLimit\": 50,\n  \"videoLimit\": 20,\n  \"apiCallLimit\": 500,\n  \"documentLimit\": 100,\n  \"resetPeriod\": \"monthly\"\n}",
+                            "options": {"raw": {"language": "json"}}
+                        },
+                        "url": {
+                            "raw": "{{baseUrl}}/plans",
+                            "host": ["{{baseUrl}}"],
+                            "path": ["plans"]
+                        },
+                        "description": "Admin: create a new usage plan. resetPeriod must be 'daily' or 'monthly'."
+                    }
+                },
+                {
+                    "name": "Update Plan",
+                    "request": {
+                        "method": "PATCH",
+                        "header": [],
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n  \"imageLimit\": 200,\n  \"apiCallLimit\": 2000\n}",
+                            "options": {"raw": {"language": "json"}}
+                        },
+                        "url": {
+                            "raw": "{{baseUrl}}/plans/:name",
+                            "host": ["{{baseUrl}}"],
+                            "path": ["plans", ":name"],
+                            "variable": [{"key": "name", "value": "pro"}]
+                        },
+                        "description": "Admin: update limits or resetPeriod for an existing plan. Only allowed fields: imageLimit, videoLimit, apiCallLimit, documentLimit, resetPeriod."
+                    }
+                },
+                {
+                    "name": "Delete Plan",
+                    "request": {
+                        "method": "DELETE",
+                        "header": [],
+                        "url": {
+                            "raw": "{{baseUrl}}/plans/:name",
+                            "host": ["{{baseUrl}}"],
+                            "path": ["plans", ":name"],
+                            "variable": [{"key": "name", "value": "starter"}]
+                        },
+                        "description": "Admin: delete a plan. Will fail with 409 if any users are currently on this plan."
+                    }
+                }
+            ]
+        },
+        {
+            "name": "Logs",
+            "description": "Activity log endpoints. Logs expire automatically after 2 days.",
+            "item": [
+                {
+                    "name": "Get My Logs",
+                    "request": {
+                        "method": "GET",
+                        "header": [],
+                        "url": {
+                            "raw": "{{baseUrl}}/logs/me?page=1&limit=20&category=auth",
+                            "host": ["{{baseUrl}}"],
+                            "path": ["logs", "me"],
+                            "query": [
+                                {"key": "page",     "value": "1"},
+                                {"key": "limit",    "value": "20"},
+                                {"key": "category", "value": "auth", "description": "Optional: auth | usage | admin | system | api"}
+                            ]
+                        },
+                        "description": "Returns the calling user's activity log. Paginated. Optional category filter: auth, usage, admin, system, api."
+                    }
+                },
+                {
+                    "name": "Admin — Get All Logs",
+                    "request": {
+                        "method": "GET",
+                        "header": [],
+                        "url": {
+                            "raw": "{{baseUrl}}/logs?page=1&limit=50&category=usage&userId=",
+                            "host": ["{{baseUrl}}"],
+                            "path": ["logs"],
+                            "query": [
+                                {"key": "page",     "value": "1"},
+                                {"key": "limit",    "value": "50"},
+                                {"key": "category", "value": "usage", "description": "Optional filter"},
+                                {"key": "userId",   "value": "",      "description": "Optional: filter by user UUID"}
+                            ]
+                        },
+                        "description": "Admin: returns all activity logs. Filter by category and/or userId. Paginated, max 200 per page."
+                    }
+                }
+            ]
         }
     ]
 }
