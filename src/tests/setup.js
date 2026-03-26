@@ -1,6 +1,7 @@
 import { Sequelize } from "sequelize";
 import { beforeAll, afterAll, jest } from "@jest/globals";
 import config from "../config/index.js";
+import { UsagePlan } from "../models/index.js";
 
 // 1. Create a STANDALONE test database instance
 const testSequelize = new Sequelize(config.testDatabaseUrl, {
@@ -24,8 +25,6 @@ await jest.unstable_mockModule("../db/index.js", () => ({
 }));
 
 beforeAll(async () => {
-  console.log(`[Test Setup] Connecting to isolated test database...`);
-
   if (!config.testDatabaseUrl) {
     throw new Error("CRITICAL: TEST_DATABASE_URL is not defined in environment!");
   }
@@ -34,7 +33,15 @@ beforeAll(async () => {
     await testSequelize.authenticate();
     // Sync models (this will use the associations defined in models/index.js if imported later)
     await testSequelize.sync({ force: true });
-    console.log(`[Test Setup] Database synced successfully.`);
+    
+    // Seed default plans for tests
+    await UsagePlan.bulkCreate([
+      { planName: 'free',       imageLimit: 10,   videoLimit: 5,    apiCallLimit: 1000,   documentLimit: 20,   resetPeriod: 'daily'   },
+      { planName: 'pro',        imageLimit: 100,  videoLimit: 50,   apiCallLimit: 10000,  documentLimit: 200,  resetPeriod: 'daily'   },
+      { planName: 'enterprise', imageLimit: 9999, videoLimit: 9999, apiCallLimit: 99999, documentLimit: 9999, resetPeriod: 'monthly' },
+    ], { ignoreDuplicates: true });
+
+    console.log(`[Test Setup] Database synced and plans seeded successfully.`);
   } catch (error) {
     console.error("[Test Setup] Failed to connect to test database:", error);
     process.exit(1);

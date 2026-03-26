@@ -59,8 +59,8 @@ console.log('   ✓ activity_logs');
         // ✅ Using upsert() instead of findOrCreate() — CockroachDB does not support
         //    the temporary PL/pgSQL functions that Sequelize's findOrCreate() relies on.
         const plans = [
-            { planName: 'free',       imageLimit: 10,   videoLimit: 5,    apiCallLimit: 100,   documentLimit: 20,   resetPeriod: 'daily'   },
-            { planName: 'pro',        imageLimit: 100,  videoLimit: 50,   apiCallLimit: 1000,  documentLimit: 200,  resetPeriod: 'daily'   },
+            { planName: 'free',       imageLimit: 10,   videoLimit: 5,    apiCallLimit: 1000,   documentLimit: 20,   resetPeriod: 'daily'   },
+            { planName: 'pro',        imageLimit: 100,  videoLimit: 50,   apiCallLimit: 10000,  documentLimit: 200,  resetPeriod: 'daily'   },
             { planName: 'enterprise', imageLimit: 9999, videoLimit: 9999, apiCallLimit: 99999, documentLimit: 9999, resetPeriod: 'monthly' },
         ];
 
