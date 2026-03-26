@@ -9,7 +9,12 @@ const testDbUrl = config.testDatabaseUrl || config.databaseUrl || "postgres://lo
 
 // 2. Determine if SSL is needed. 
 // Most cloud DBs (CockroachDB) need SSL, but local/CI ones shouldn't.
-const useSsl = testDbUrl.includes('cockroachlabs.cloud') || testDbUrl.includes('amazonaws.com') || testDbUrl.includes('google.com');
+// Check for explicit sslmode in URL or known cloud providers, but EXCLUDE local hostnames.
+const isLocal = testDbUrl.includes('localhost') || testDbUrl.includes('127.0.0.1') || testDbUrl.includes('postgres') || testDbUrl.includes('db');
+const hasSslMode = testDbUrl.includes('sslmode=require') || testDbUrl.includes('sslmode=verify-full');
+const isCloud  = testDbUrl.includes('cockroachlabs.cloud') || testDbUrl.includes('amazonaws.com') || testDbUrl.includes('google.com');
+
+const useSsl = hasSslMode || (isCloud && !isLocal);
 
 const testSequelize = new Sequelize(testDbUrl, {
   dialect: "postgres",
