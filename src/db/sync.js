@@ -8,7 +8,7 @@
  */
 
 import '../config/index.js';
-import { sequelize, User, Session, Message, Document, OTP, Memory, Task } from '../models/index.js';
+import { sequelize, User, Session, Message, Document, OTP, Memory, Task, UsagePlan, UserUsage, Log } from '../models/index.js';
 
 const force = process.env.FORCE === 'true';
 
@@ -46,6 +46,27 @@ try {
 
     await Task.sync({ force, alter: true });
     console.log('   ✓ tasks');
+
+    await UsagePlan.sync({ force, alter: true });
+    console.log('   ✓ usage_plans');
+
+    await UserUsage.sync({ force, alter: true });
+    console.log('   ✓ user_usage');
+
+    await Log.sync({ force, alter: true });
+    console.log('   ✓ activity_logs');
+
+    // Seed default plans after sync
+    const plans = [
+        { planName: 'free',       imageLimit: 10,   videoLimit: 5,    apiCallLimit: 1000,   documentLimit: 20,   resetPeriod: 'daily'   },
+        { planName: 'pro',        imageLimit: 100,  videoLimit: 50,   apiCallLimit: 10000,  documentLimit: 200,  resetPeriod: 'daily'   },
+        { planName: 'enterprise', imageLimit: 9999, videoLimit: 9999, apiCallLimit: 99999, documentLimit: 9999, resetPeriod: 'monthly' },
+    ];
+
+    for (const plan of plans) {
+        await UsagePlan.upsert(plan);
+    }
+    console.log('   ✓ usage plans seeded');
 
     // Verify
     const [tables] = await sequelize.query(
