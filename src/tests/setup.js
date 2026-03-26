@@ -10,11 +10,13 @@ jest.setTimeout(60000);
 const testDbUrl = config.testDatabaseUrl || config.databaseUrl || "postgres://localhost:5432/test_db";
 
 // 2. Determine if SSL is needed. 
+// ONLY use SSL if the URL contains sslmode=require/verify-full OR it's a known cloud host.
+// If it's a local/CI hostname (localhost, postgres, db), we DISALLOW SSL even if it's a cloud fallback.
 const isLocal = testDbUrl.includes('localhost') || testDbUrl.includes('127.0.0.1') || testDbUrl.includes('postgres') || testDbUrl.includes('db');
-const hasSslMode = testDbUrl.includes('sslmode=require') || testDbUrl.includes('sslmode=verify-full');
+const hasSslParams = testDbUrl.includes('sslmode=require') || testDbUrl.includes('sslmode=verify-full');
 const isCloud  = testDbUrl.includes('cockroachlabs.cloud') || testDbUrl.includes('amazonaws.com') || testDbUrl.includes('google.com');
 
-const useSsl = hasSslMode || (isCloud && !isLocal);
+const useSsl = hasSslParams || (isCloud && !isLocal);
 
 const testSequelize = new Sequelize(testDbUrl, {
   dialect: "postgres",
