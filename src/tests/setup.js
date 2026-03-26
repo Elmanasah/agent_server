@@ -1,10 +1,12 @@
 import { Sequelize } from "sequelize";
 import { beforeAll, afterAll, jest } from "@jest/globals";
 import config from "../config/index.js";
-import { UsagePlan } from "../models/index.js";
 
 // Increase timeout for slow database operations (e.g. CockroachDB sync)
 jest.setTimeout(60000);
+
+// We'll import models dynamically later to avoid ESM hoisting issues
+let UsagePlan;
 
 // 1. Determine the test database URL. 
 const testDbUrl = config.testDatabaseUrl || config.databaseUrl || "postgres://localhost:5432/test_db";
@@ -32,8 +34,12 @@ await jest.unstable_mockModule("../db/index.js", () => ({
 
 beforeAll(async () => {
   try {
+    // Dynamically import models AFTER the mock is active
+    const models = await import("../models/index.js");
+    UsagePlan = models.UsagePlan;
+
     await testSequelize.authenticate();
-    // Sync models
+    // Sync models (this will now sync all models imported above)
     await testSequelize.sync({ force: true });
     
     // Seed default plans for tests
