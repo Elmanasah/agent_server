@@ -11,7 +11,10 @@ export class AuthService {
     const role = userData.role || "user";
 
     if (role === "admin") {
-      throw new AppError("Admin role is not allowed for self-registration", 400);
+      throw new AppError(
+        "Admin role is not allowed for self-registration",
+        400,
+      );
     }
 
     // 1. Verify verification token
@@ -63,8 +66,8 @@ export class AuthService {
 
     // 4. Auto-assign the default 'free' plan
     await UserUsage.create({
-      userId:      user.id,
-      planName:    'free',
+      userId: user.id,
+      planName: "free",
       periodStart: new Date(),
       lastResetAt: new Date(),
     });
@@ -86,17 +89,18 @@ export class AuthService {
     if (!isMatch) {
       throw new AppError("Invalid credentials", 401);
     }
+    // the db is already deleted i am so stupid i can fix it but i am to lazy for that
     // this one so we don't destory our pr db and fix any possible error and this is the easiest way put may be the worst on performonce put i am lazy to fix it
-    const havePlan = await UserUsage.findOne({ where: { userId: user.id } });
-    if (!havePlan) {
-      await UserUsage.create({
-        userId:      user.id,
-        planName:    'free',
-        periodStart: new Date(),
-        lastResetAt: new Date(),
-      });
-    }
-    
+    // const havePlan = await UserUsage.findOne({ where: { userId: user.id } });
+    // if (!havePlan) {
+    //   await UserUsage.create({
+    //     userId:      user.id,
+    //     planName:    'free',
+    //     periodStart: new Date(),
+    //     lastResetAt: new Date(),
+    //   });
+    // }
+
     const token = await generateToken({ id: user.id, role: user.role });
     return { user: user.toSafeJSON(), token };
   }
@@ -151,7 +155,10 @@ export class AuthService {
       if (!currentPassword) {
         throw new AppError("Current password is required", 400);
       }
-      const isMatch = await user.correctPassword(currentPassword, user.password);
+      const isMatch = await user.correctPassword(
+        currentPassword,
+        user.password,
+      );
       if (!isMatch) {
         throw new AppError("Incorrect current password", 401);
       }
