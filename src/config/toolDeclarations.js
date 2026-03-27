@@ -244,9 +244,9 @@ export const TOOL_DECLARATIONS = [
                     enum: ["Idle", "Walking", "Running", "Dance", "Death", "Sitting", "Standing", "Jump", "Yes", "No", "Wave", "Punch", "ThumbsUp"]
                 },
                 expressions: {
-                    type: 'object',
-                    description: 'A map of facial expression intensities from 0 to 1 (e.g., {"Angry": 1.0}).',
-                    additionalProperties: { type: 'number' }
+                    type: "object",
+                    description: "A map of facial expression intensities (0-1). Supported expressions include: Angry, Surprised, Sad.",
+                    additionalProperties: { type: "number" }
                 },
                 title: {
                     type: 'string',
