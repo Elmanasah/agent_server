@@ -228,5 +228,32 @@ export const TOOL_DECLARATIONS = [
             },
             required: ['quizData']
         }
+    },
+    {
+        name: 'control_robot',
+        description: 'Control the emotional states, expressions, and animations of the 3D robot model in the Canvas. ' +
+            'Available actions include: Idle, Walking, Running, Dance, Death, Sitting, Standing, Jump, Yes, No, Wave, Punch, ThumbsUp. ' +
+            'Available expressions include: Angry, Surprised, Sad, etc. ' +
+            'Use this to visually express emotions or perform physical actions requested by the user.',
+        parameters: {
+            type: 'object',
+            properties: {
+                action: {
+                    type: "string",
+                    description: "The specific animation or state to trigger.",
+                    enum: ["Idle", "Walking", "Running", "Dance", "Death", "Sitting", "Standing", "Jump", "Yes", "No", "Wave", "Punch", "ThumbsUp"]
+                },
+                expressions: {
+                    type: 'object',
+                    description: 'A map of facial expression intensities from 0 to 1 (e.g., {"Angry": 1.0}).',
+                    additionalProperties: { type: 'number' }
+                },
+                title: {
+                    type: 'string',
+                    description: 'A short label for this robot action.'
+                }
+            },
+            required: ['action']
+        }
     }
 ];

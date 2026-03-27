@@ -139,6 +139,15 @@ async function executeTool(name, args, userId) {
                 text: `Math plot rendered: "${(args.title || 'Plot').slice(0, 40)}"`,
                 math: { json: args.json, title: args.title || 'Math Plot' },
             };
+        case 'control_robot':
+            return {
+                text: `Robot action triggered: "${args.action}"${args.expressions ? ` with expressions: ${JSON.stringify(args.expressions)}` : ''}`,
+                robot: {
+                    action: args.action,
+                    expressions: args.expressions || {},
+                    title: args.title || `Robot: ${args.action}`
+                }
+            };
         default:
             return { text: `Tool "${name}" not implemented in live agent.` };
     }
@@ -227,6 +236,7 @@ export class LiveAgentSession {
                                 if (output.math) clientPayload.tool_result.math = output.math;
                                 if (output.quiz) clientPayload.tool_result.quiz = output.quiz;
                                 if (output.image) clientPayload.tool_result.image = output.image;
+                                if (output.robot) clientPayload.tool_result.robot = output.robot;
                             }
                             this.clientWs.send(JSON.stringify(clientPayload));
                         }
@@ -301,6 +311,7 @@ export class LiveAgentSession {
                             if (output.math) clientPayload.tool_result.math = output.math;
                             if (output.quiz) clientPayload.tool_result.quiz = output.quiz;
                             if (output.image) clientPayload.tool_result.image = output.image;
+                            if (output.robot) clientPayload.tool_result.robot = output.robot;
                         }
                         this.clientWs.send(JSON.stringify(clientPayload));
                     }
