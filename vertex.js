@@ -6,4 +6,4 @@ const vertexAI = new VertexAI({
     location: config.location,
 });
 
-export const model = vertexAI.getGenerativeModel({ model: 'gemini-2.0-flash-001' });
+export const model = vertexAI.getGenerativeModel({ model: 'gemini-2.5-flash' });
